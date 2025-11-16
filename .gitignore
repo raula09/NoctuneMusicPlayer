@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.idea/
+.vscode/
+*~
+*.user
+*.swp
+*.db
+*.DS_Store
+*.mp3
+*.wav
+*.flac
