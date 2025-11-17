@@ -542,9 +542,9 @@ void ShowFullscreen()
     int steps = 12;
     int delay = fadeMs / steps;
 
-    int startVol = (int)VolumeSlider.Value; // ALWAYS based on slider
+    int startVol = (int)VolumeSlider.Value; 
 
-    // Fade out
+   
     for (int i = 0; i < steps; i++)
     {
         _mp.Volume = Math.Max(0, startVol - (startVol * i / steps));
@@ -554,9 +554,9 @@ void ShowFullscreen()
     _index = nextIndex;
     PlayIndex();
 
-    _mp.Volume = 0; // reset volume for new track
+    _mp.Volume = 0;
 
-    // Fade in
+   
     for (int i = 0; i < steps; i++)
     {
         _mp.Volume = Math.Min(startVol, (startVol * i / steps));
