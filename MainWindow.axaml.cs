@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Svg;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -21,6 +22,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using TrackModel = MusicPlayerApp.Models.Track;
+using Avalonia.Svg.Skia;
 
 namespace MusicPlayerApp;
 
@@ -34,6 +36,7 @@ public class QueueEntry
         Track = track;
         IsCurrent = isCurrent;
     }
+    
 }
 
 public partial class MainWindow : Window
@@ -41,6 +44,7 @@ public partial class MainWindow : Window
     const int VisualBarCount = 120;
 
     readonly object _audioLock = new();
+    FullscreenPlayer? _fullscreen;
 
     PipeWireCapture? _capture;
     VisualizerService _visualizer = new();
@@ -68,6 +72,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Core.Initialize();
+
+     this.Opened += (_, _) => this.Focus();
+this.KeyDown += MainWindow_KeyDown;
+
+        MiniPrev.Click += (_, _) => Prev(null, new RoutedEventArgs());
+        MiniNext.Click += (_, _) => Next(null, new RoutedEventArgs());
+        MiniPlayPause.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
+
+        FullscreenButton.Click += (_, _) => ShowFullscreen();
 
         _libVLC = new LibVLC("--aout=pulse");
         _mp = new MediaPlayer(_libVLC);
@@ -106,8 +119,7 @@ public partial class MainWindow : Window
 
         AddButton.Click += AddClicked;
         RemoveButton.Click += RemoveClicked;
-      PlaylistBox.SelectionChanged += PlaylistBox_SelectionChanged;
-
+        PlaylistBox.SelectionChanged += PlaylistBox_SelectionChanged;
 
         PlayContextMenuItem.Click += PlayContextMenuItem_Click;
         RemoveContextMenuItem.Click += RemoveContextMenuItem_Click;
@@ -133,89 +145,50 @@ public partial class MainWindow : Window
 
         InitVisualizer();
         InitPositionTimer();
-
-        KeyDown += MainWindow_KeyDown;
-        MiniPlayButton.Click += (_,__) => PlayPause(null, new RoutedEventArgs());
-
+        MiniPlayButton.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
     }
+
+
 
     void InitPositionTimer()
     {
-        _positionUpdateTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(100)
-        };
+        _positionUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         _positionUpdateTimer.Tick += PositionUpdateTimer_Tick;
         _positionUpdateTimer.Start();
-    }
-
-    void PositionUpdateTimer_Tick(object? sender, EventArgs e)
-    {
-        if (_mp.IsPlaying && !_userIsSeeking)
-        {
-            var time = _mp.Time;
-            var length = _mp.Length;
-
-            if (length > 0)
-            {
-                PositionSlider.Maximum = length;
-                PositionSlider.Value = time;
-
-                CurrentTimeText.Text = TimeSpan.FromMilliseconds(time).ToString(@"m\:ss");
-                TotalTimeText.Text = TimeSpan.FromMilliseconds(length).ToString(@"m\:ss");
-            }
-        }
     }
 
     void PositionSlider_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         _userIsSeeking = true;
-
-        var point = e.GetPosition(PositionSlider);
-        var percentage = Math.Clamp(point.X / PositionSlider.Bounds.Width, 0, 1);
-        var newPosition = (long)(percentage * PositionSlider.Maximum);
-
-        if (newPosition >= 0 && newPosition <= PositionSlider.Maximum)
-        {
-            PositionSlider.Value = newPosition;
-            CurrentTimeText.Text = TimeSpan.FromMilliseconds(newPosition).ToString(@"m\:ss");
-        }
+        var p = e.GetPosition(PositionSlider);
+        var pct = Math.Clamp(p.X / PositionSlider.Bounds.Width, 0, 1);
+        var pos = (long)(pct * PositionSlider.Maximum);
+        PositionSlider.Value = pos;
+        CurrentTimeText.Text = TimeSpan.FromMilliseconds(pos).ToString(@"m\:ss");
     }
 
     void PositionSlider_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (_userIsSeeking && e.GetCurrentPoint(PositionSlider).Properties.IsLeftButtonPressed)
         {
-            var point = e.GetPosition(PositionSlider);
-            var percentage = Math.Clamp(point.X / PositionSlider.Bounds.Width, 0, 1);
-            var newPosition = (long)(percentage * PositionSlider.Maximum);
-
-            if (newPosition >= 0 && newPosition <= PositionSlider.Maximum)
-            {
-                PositionSlider.Value = newPosition;
-                CurrentTimeText.Text = TimeSpan.FromMilliseconds(newPosition).ToString(@"m\:ss");
-            }
+            var p = e.GetPosition(PositionSlider);
+            var pct = Math.Clamp(p.X / PositionSlider.Bounds.Width, 0, 1);
+            var pos = (long)(pct * PositionSlider.Maximum);
+            PositionSlider.Value = pos;
+            CurrentTimeText.Text = TimeSpan.FromMilliseconds(pos).ToString(@"m\:ss");
         }
     }
 
     void PositionSlider_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
-    {
-        HandleSeek();
-    }
+        => HandleSeek();
 
     void PositionSlider_PointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        HandleSeek();
-    }
+        => HandleSeek();
 
     void HandleSeek()
     {
         if (_userIsSeeking && _mp.Media != null && _mp.IsSeekable)
-        {
-            var seekPosition = (long)PositionSlider.Value;
-            _mp.Time = seekPosition;
-        }
-
+            _mp.Time = (long)PositionSlider.Value;
         _userIsSeeking = false;
     }
 
@@ -255,13 +228,6 @@ public partial class MainWindow : Window
             VolumeSlider.Value = Math.Max(VolumeSlider.Minimum, VolumeSlider.Value - 5);
             return;
         }
-
-        if (e.Key == Key.L && e.KeyModifiers == KeyModifiers.Control)
-        {
-            e.Handled = true;
-            SearchBox.Focus();
-            return;
-        }
     }
 
     void OnPipeWireSamples(float[] samples)
@@ -270,6 +236,46 @@ public partial class MainWindow : Window
             _visualizer.AddSamples(samples);
     }
 
+    void PositionUpdateTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_mp.IsPlaying && !_userIsSeeking)
+        {
+            var t = _mp.Time;
+            var l = _mp.Length;
+            if (l > 0)
+            {
+                PositionSlider.Maximum = l;
+                PositionSlider.Value = t;
+                CurrentTimeText.Text = TimeSpan.FromMilliseconds(t).ToString(@"m\:ss");
+                TotalTimeText.Text = TimeSpan.FromMilliseconds(l).ToString(@"m\:ss");
+            }
+        }
+        SyncFullscreen();
+    }
+
+    void SyncFullscreen()
+{
+    if (_fullscreen == null || !_fullscreen.IsVisible)
+        return;
+
+    _fullscreen.UpdatePlayback(
+        PositionSlider.Value,
+        PositionSlider.Maximum,
+        CurrentTimeText.Text,
+        TotalTimeText.Text,
+        _mp.IsPlaying);
+
+    if (_index >= 0 && _index < _playlist.Count)
+    {
+        var t = _playlist[_index];
+        _fullscreen.UpdateTrack(
+            t.Art as Bitmap,
+            t.Title,
+            t.Artist,
+            t.Album,  // ← Add this line
+            t.DateAdded.Year.ToString());
+    }
+}
     void InitVisualizer()
     {
         VisualizerPanel.Children.Clear();
@@ -288,10 +294,7 @@ public partial class MainWindow : Window
             VisualizerPanel.Children.Add(b);
         }
 
-        _visualizerTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(60)
-        };
+        _visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
         _visualizerTimer.Tick += VisualizerTimer_Tick;
         _visualizerTimer.Start();
     }
@@ -299,7 +302,6 @@ public partial class MainWindow : Window
     void VisualizerTimer_Tick(object? sender, EventArgs e)
     {
         double[] bars;
-
         lock (_audioLock)
             bars = _visualizer.GetSpectrum(VisualBarCount);
 
@@ -314,23 +316,21 @@ public partial class MainWindow : Window
             return;
         }
 
-        int count = Math.Min(VisualizerPanel.Children.Count, bars.Length);
+        int cnt = Math.Min(VisualizerPanel.Children.Count, bars.Length);
         double sum = 0;
-
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < cnt; i++)
         {
-            double value = bars[i];
-            double h = 6 + value * 60;
+            double v = bars[i];
+            double h = 6 + v * 60;
             if (VisualizerPanel.Children[i] is Border b)
                 b.Height = h;
-            sum += value;
+            sum += v;
         }
 
-        if (BackgroundGradient != null && count > 0)
+        if (BackgroundGradient != null)
         {
-            double avg = sum / count;
-            double opacity = 0.6 + Math.Min(0.4, avg * 2);
-            BackgroundGradient.Opacity = opacity;
+            double avg = sum / cnt;
+            BackgroundGradient.Opacity = 0.6 + Math.Min(0.4, avg * 2);
         }
     }
 
@@ -342,9 +342,7 @@ public partial class MainWindow : Window
     }
 
     void LoopButton_Click(object? sender, RoutedEventArgs e)
-    {
-        _loop = LoopButton.IsChecked == true;
-    }
+        => _loop = LoopButton.IsChecked == true;
 
     void MediaPlayer_EndReached(object? sender, EventArgs e)
     {
@@ -371,19 +369,60 @@ public partial class MainWindow : Window
         FavFilterButton.IsChecked = !(FavFilterButton.IsChecked ?? false);
         RebuildView();
     }
-void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+void ShowFullscreen()
 {
-    if (PlaylistBox.SelectedItem is not TrackModel track)
+    if (_index < 0 || _index >= _playlist.Count)
         return;
 
-    int i = _playlist.IndexOf(track);
-    if (i < 0)
-        return;
+    var t = _playlist[_index];
+    _fullscreen = new FullscreenPlayer(
+        t.Art as Bitmap,
+        t.Title,
+        t.Artist,
+        t.Album,
+        t.DateAdded.Year.ToString());
 
-    _index = i;
-    RebuildShuffleQueue();
-    PlayIndex();
+    _fullscreen.PrevRequested += (_, _) => Prev(null, new RoutedEventArgs());
+    _fullscreen.NextRequested += (_, _) => Next(null, new RoutedEventArgs());
+    _fullscreen.PlayPauseRequested += (_, _) => PlayPause(null, new RoutedEventArgs());
+    _fullscreen.SeekRequested += (_, pos) =>
+    {
+        if (_mp.Media != null && _mp.IsSeekable)
+            _mp.Time = pos;
+    };
+
+    _fullscreen.VolumeRequested += (_, delta) =>
+    {
+        VolumeSlider.Value = Math.Clamp(
+            VolumeSlider.Value + delta,
+            VolumeSlider.Minimum,
+            VolumeSlider.Maximum);
+    };
+
+    _fullscreen.Closed += (_, _) => 
+    {
+        _fullscreen = null;
+        this.Focus();  // ← Add this line to refocus the main window
+    };
+
+    SyncFullscreen();
+    _fullscreen.Show();
 }
+
+    void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (PlaylistBox.SelectedItem is not TrackModel track)
+            return;
+
+        int i = _playlist.IndexOf(track);
+        if (i < 0)
+            return;
+
+        _index = i;
+        RebuildShuffleQueue();
+        PlayIndex();
+    }
+
     void RebuildView()
     {
         _viewTracks.Clear();
@@ -422,10 +461,10 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
 
         if (_index >= 0 && _index < _playlist.Count)
         {
-            var current = _playlist[_index];
-            int viewIndex = _viewTracks.IndexOf(current);
-            if (viewIndex >= 0)
-                PlaylistBox.SelectedIndex = viewIndex;
+            var cur = _playlist[_index];
+            int vi = _viewTracks.IndexOf(cur);
+            if (vi >= 0)
+                PlaylistBox.SelectedIndex = vi;
         }
 
         RebuildShuffleQueue();
@@ -472,17 +511,15 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
                 RebuildShuffleQueue();
 
             _queuePreview.Add(new QueueEntry(_playlist[_index], true));
-
             foreach (int i in _staticShuffleQueue.Take(max - 1))
                 _queuePreview.Add(new QueueEntry(_playlist[i], false));
-
             return;
         }
 
-        for (int offset = 0; offset < max; offset++)
+        for (int o = 0; o < max; o++)
         {
-            int idx = (_index + offset) % _playlist.Count;
-            _queuePreview.Add(new QueueEntry(_playlist[idx], idx == _index));
+            int id = (_index + o) % _playlist.Count;
+            _queuePreview.Add(new QueueEntry(_playlist[id], id == _index));
         }
     }
 
@@ -496,31 +533,36 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         });
     }
 
-    async Task CrossfadeTo(int nextIndex)
+  async Task CrossfadeTo(int nextIndex)
+{
+    if (_playlist.Count == 0)
+        return;
+
+    int fadeMs = 300;
+    int steps = 12;
+    int delay = fadeMs / steps;
+
+    int startVol = (int)VolumeSlider.Value; // ALWAYS based on slider
+
+    // Fade out
+    for (int i = 0; i < steps; i++)
     {
-        if (_playlist.Count == 0)
-            return;
-
-        int fadeMs = 400;
-        int steps = 15;
-        int delay = fadeMs / steps;
-        int startVol = _mp.Volume;
-
-        for (int i = 0; i < steps; i++)
-        {
-            _mp.Volume = Math.Max(0, _mp.Volume - startVol / steps);
-            await Task.Delay(delay);
-        }
-
-        _index = nextIndex;
-        PlayIndex();
-
-        for (int i = 0; i < steps; i++)
-        {
-            _mp.Volume = Math.Min((int)VolumeSlider.Value, _mp.Volume + startVol / steps);
-            await Task.Delay(delay);
-        }
+        _mp.Volume = Math.Max(0, startVol - (startVol * i / steps));
+        await Task.Delay(delay);
     }
+
+    _index = nextIndex;
+    PlayIndex();
+
+    _mp.Volume = 0; // reset volume for new track
+
+    // Fade in
+    for (int i = 0; i < steps; i++)
+    {
+        _mp.Volume = Math.Min(startVol, (startVol * i / steps));
+        await Task.Delay(delay);
+    }
+}
 
     async void AddClicked(object? s, RoutedEventArgs e)
     {
@@ -586,10 +628,10 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
 
     void PlaylistDouble(object? s, RoutedEventArgs e)
     {
-        if (PlaylistBox.SelectedItem is not TrackModel track)
+        if (PlaylistBox.SelectedItem is not TrackModel t)
             return;
 
-        int i = _playlist.IndexOf(track);
+        int i = _playlist.IndexOf(t);
         if (i < 0)
             return;
 
@@ -606,19 +648,16 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
 
     void OpenFolderContextMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        if (PlaylistBox.SelectedItem is not TrackModel track)
+        if (PlaylistBox.SelectedItem is not TrackModel t)
             return;
-
-        TryOpenFolderForTrack(track.Path);
+        TryOpenFolderForTrack(t.Path);
     }
 
     void AlbumArt_DoubleTapped(object? sender, RoutedEventArgs e)
     {
         if (_index < 0 || _index >= _playlist.Count)
             return;
-
-        var track = _playlist[_index];
-        TryOpenFolderForTrack(track.Path);
+        TryOpenFolderForTrack(_playlist[_index].Path);
     }
 
     void TryOpenFolderForTrack(string path)
@@ -642,8 +681,8 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (e.GetCurrentPoint(PlaylistBox).Properties.IsMiddleButtonPressed)
         {
-            if (PlaylistBox.SelectedItem is TrackModel track)
-                track.IsFavorite = !track.IsFavorite;
+            if (PlaylistBox.SelectedItem is TrackModel t)
+                t.IsFavorite = !t.IsFavorite;
         }
     }
 
@@ -655,29 +694,24 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         try
         {
             var size = new PixelSize(24, 24);
-            var rtb = new RenderTargetBitmap(size);
+            var bmp = new RenderTargetBitmap(size);
 
-            using (var dc = rtb.CreateDrawingContext())
-                dc.DrawImage(art, new Rect(art.Size), new Rect(0, 0, size.Width, size.Height));
+            using (var ctx = bmp.CreateDrawingContext())
+                ctx.DrawImage(art, new Rect(art.Size), new Rect(0, 0, size.Width, size.Height));
 
             int pixels = size.Width * size.Height;
             int stride = size.Width * 4;
             int bufSize = pixels * 4;
             byte[] buffer = new byte[bufSize];
 
-            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+            var h = GCHandle.Alloc(buffer, GCHandleType.Pinned);
             try
             {
-                rtb.CopyPixels(
-                    new PixelRect(0, 0, size.Width, size.Height),
-                    handle.AddrOfPinnedObject(),
-                    bufSize,
-                    stride);
+                bmp.CopyPixels(new PixelRect(0, 0, size.Width, size.Height), h.AddrOfPinnedObject(), bufSize, stride);
             }
-            finally { handle.Free(); }
+            finally { h.Free(); }
 
             long rs = 0, gs = 0, bs = 0;
-
             for (int i = 0; i < bufSize; i += 4)
             {
                 bs += buffer[i + 0];
@@ -706,10 +740,7 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
                 }
             };
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("BG extract error: " + ex.Message);
-        }
+        catch { }
     }
 
     void PlayIndex()
@@ -722,28 +753,27 @@ void PlaylistBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
             return;
         }
 
-        var track = _playlist[_index];
+        var t = _playlist[_index];
 
-        TrackLabel.Text = track.Title;
-        AlbumLabel.Text = track.Album;
-        ArtistLabel.Text = track.Artist;
-        MiniCover.Source = track.Art;
-MiniTitle.Text = track.Title;
-MiniArtist.Text = track.Artist;
+        TrackLabel.Text = t.Title;
+        AlbumLabel.Text = t.Album;
+        ArtistLabel.Text = t.Artist;
+        MiniCover.Source = t.Art;
+        MiniTitle.Text = t.Title;
+        MiniArtist.Text = t.Artist;
 
+        AlbumArt.Source = t.Art;
+        UpdateBackgroundFromAlbum(t.Art as Bitmap);
 
-        AlbumArt.Source = track.Art;
-        UpdateBackgroundFromAlbum(track.Art as Bitmap);
-
-        var media = new Media(_libVLC, new Uri(track.Path));
+        var media = new Media(_libVLC, new Uri(t.Path));
         _mp.Media = media;
         _mp.Play();
 
-        PlayPauseIcon.Text = "⏸";
+        
 
-        int viewIndex = _viewTracks.IndexOf(track);
-        if (viewIndex >= 0)
-            PlaylistBox.SelectedIndex = viewIndex;
+        int vi = _viewTracks.IndexOf(t);
+        if (vi >= 0)
+            PlaylistBox.SelectedIndex = vi;
 
         UpdateQueuePreview();
 
@@ -763,26 +793,34 @@ MiniArtist.Text = track.Artist;
         }
     }
 
-    void PlayPause(object? s, RoutedEventArgs e)
+void PlayPause(object? s, RoutedEventArgs e)
+{
+    if (!_mp.IsPlaying && _mp.Media == null && _playlist.Count > 0)
     {
-        if (!_mp.IsPlaying && _mp.Media == null && _playlist.Count > 0)
-        {
-            _index = _index >= 0 ? _index : 0;
-            PlayIndex();
-            return;
-        }
-
-        if (_mp.IsPlaying)
-        {
-            _mp.Pause();
-            PlayPauseIcon.Text = "▶";
-        }
-        else
-        {
-            _mp.Play();
-            PlayPauseIcon.Text = "⏸";
-        }
+        _index = _index >= 0 ? _index : 0;
+        PlayIndex();
+        return;
     }
+
+    if (_mp.IsPlaying)
+    {
+        _mp.Pause();
+        PlayPauseIcon.Source = new SvgImage
+        {
+            Source = SvgSource.Load("avares://MusicPlayerApp/Images/play-solid-full.svg", null)
+        };
+    }
+    else
+    {
+        _mp.Play();
+        PlayPauseIcon.Source = new SvgImage
+        {
+            Source = SvgSource.Load("avares://MusicPlayerApp/Images/pause-solid-full.svg", null)
+        };
+    }
+}
+
+
 
     async Task NextInternal()
     {
