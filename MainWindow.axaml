@@ -72,7 +72,6 @@
 
   <Window.DataTemplates>
 
-    <!-- PLAYLIST TRACK ROW -->
     <DataTemplate DataType="models:Track">
       <Border Background="Transparent"
               Padding="4"
@@ -147,7 +146,6 @@
       </Border>
     </DataTemplate>
 
-    <!-- QUEUE PREVIEW -->
     <DataTemplate DataType="local:QueueEntry">
       <Border Background="Transparent"
               Padding="4,3">
@@ -187,8 +185,6 @@
     </DataTemplate>
 
   </Window.DataTemplates>
-
-  <!-- MAIN ROOT LAYOUT -->
   <Grid>
 
     <Border Name="BackgroundGradient"
@@ -198,7 +194,6 @@
     <Grid RowDefinitions="*,90"
           ColumnDefinitions="260,*">
 
-  <!-- SIDEBAR -->
 <Border Grid.Column="0"
         Grid.RowSpan="2"
         Background="#050505"
@@ -212,14 +207,12 @@
 
       <StackPanel Spacing="22">
 
-        <!-- APP TITLE -->
         <TextBlock Text="Music Player"
                    FontSize="22"
                    FontWeight="Bold"
                    Foreground="#FFFFFF"
                    Margin="2,0,0,0"/>
 
-        <!-- NOW PLAYING MINI -->
         <Border Background="#111111"
                 CornerRadius="12"
                 Padding="10"
@@ -263,7 +256,6 @@
           </Grid>
         </Border>
 
-        <!-- LIBRARY FILTERS -->
         <StackPanel Spacing="8">
 
           <TextBlock Text="Your Library"
@@ -303,7 +295,6 @@
 
         </StackPanel>
 
-        <!-- ADD / REMOVE -->
         <StackPanel Orientation="Horizontal"
                     Spacing="8">
 
@@ -323,7 +314,6 @@
 
         </StackPanel>
 
-        <!-- QUEUE -->
         <StackPanel Spacing="6">
           <TextBlock Text="Queue"
                      FontSize="12"
@@ -353,14 +343,12 @@
   </Border>
 </Border>
 
-      <!-- MAIN CONTENT -->
       <Grid Grid.Column="1"
             Grid.Row="0"
             Margin="10,10,16,4">
 
         <Grid RowDefinitions="Auto,*">
 
-          <!-- NOW PLAYING AREA -->
           <Grid Grid.Row="0"
                 ColumnDefinitions="Auto,*"
                 Margin="0,0,0,16"
@@ -402,7 +390,6 @@
 
           </Grid>
 
-          <!-- PLAYLIST -->
           <Border Grid.Row="1"
                   Background="#181818"
                   CornerRadius="12"
@@ -427,7 +414,6 @@
 
       </Grid>
 
-      <!-- PLAYER BAR -->
       <Border Grid.ColumnSpan="2"
               Grid.Row="1"
               Background="#000000"
@@ -437,7 +423,6 @@
               ColumnDefinitions="*,Auto,*"
               VerticalAlignment="Center">
 
-          <!-- TIME SLIDER -->
           <Grid Grid.Row="0"
                 Grid.Column="1"
                 ColumnDefinitions="Auto,*,Auto"
@@ -485,7 +470,6 @@
                        Margin="6,0,0,0"/>
           </Grid>
 
-          <!-- CONTROLS -->
           <StackPanel Grid.Row="1"
                       Grid.Column="1"
                       Orientation="Horizontal"
@@ -537,7 +521,6 @@
                           Background="Transparent"/>
           </StackPanel>
 
-          <!-- VOLUME & VISUALIZER -->
           <StackPanel Grid.Row="1"
                       Grid.Column="2"
                       Orientation="Horizontal"
