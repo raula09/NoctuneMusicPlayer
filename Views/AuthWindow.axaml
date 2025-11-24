@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:MusicPlayerApp.Views"
+        x:Class="MusicPlayerApp.Views.AuthWindow"
+        Width="600"
+        Height="700"
+        MinWidth="500"
+        MinHeight="600"
+        Background="#000000"
+        Title="Noctune"
+        TransparencyLevelHint="AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        SystemDecorations="Full"
+        CanResize="False">
+  
+  <ContentControl x:Name="AuthContent"/>
+</Window>

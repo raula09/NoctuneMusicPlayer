@@ -1,0 +1,249 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:MusicPlayerApp.Models"
+             xmlns:views="using:MusicPlayerApp.Views"
+             x:Class="MusicPlayerApp.Views.StatsView"
+             Background="#000000">
+
+  <UserControl.Styles>
+    <Style Selector="Border.stat-card">
+      <Setter Property="Background">
+        <Setter.Value>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#1A1A1A" Offset="0"/>
+            <GradientStop Color="#0F0F0F" Offset="1"/>
+          </LinearGradientBrush>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="CornerRadius" Value="16"/>
+      <Setter Property="Padding" Value="24"/>
+      <Setter Property="BorderBrush" Value="#2A2A2A"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
+    <Style Selector="TextBlock.stat-value">
+      <Setter Property="FontSize" Value="36"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#1DB954"/>
+    </Style>
+
+    <Style Selector="TextBlock.stat-label">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="#B3B3B3"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+
+    <Style Selector="Border.top-song">
+      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <Style Selector="Border.top-song:pointerover">
+      <Setter Property="Background" Value="#252525"/>
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="40,30">
+      
+     
+      <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,32">
+        <TextBlock Text="Your Music Stats" 
+                   FontSize="42" 
+                   FontWeight="Bold" 
+                   Foreground="#FFFFFF"/>
+        <TextBlock Text="See your listening journey" 
+                   FontSize="16" 
+                   Foreground="#B3B3B3"/>
+      </StackPanel>
+
+      
+      <Border Grid.Row="1" Classes="stat-card" Margin="0,0,0,24">
+        <StackPanel Spacing="16">
+          <TextBlock Text="Account Information" 
+                     FontSize="20" 
+                     FontWeight="SemiBold" 
+                     Foreground="#FFFFFF"/>
+          
+          <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto">
+            
+            <StackPanel Grid.Column="0" Spacing="8">
+              <TextBlock Text="📧" FontSize="24"/>
+              <TextBlock x:Name="EmailText" 
+                         Text="user@example.com" 
+                         FontSize="15" 
+                         Foreground="#FFFFFF"/>
+              <TextBlock Text="Email Address" Classes="stat-label"/>
+            </StackPanel>
+
+            
+            <StackPanel Grid.Column="1" Spacing="8">
+              <TextBlock Text="📅" FontSize="24"/>
+              <TextBlock x:Name="MemberSinceText" 
+                         Text="Jan 2025" 
+                         FontSize="15" 
+                         Foreground="#FFFFFF"/>
+              <TextBlock Text="Member Since" Classes="stat-label"/>
+            </StackPanel>
+
+           
+            <StackPanel Grid.Column="2" Spacing="8">
+              <TextBlock Text="✓" FontSize="24" Foreground="#1DB954"/>
+              <TextBlock Text="Verified" 
+                         FontSize="15" 
+                         Foreground="#1DB954"
+                         FontWeight="SemiBold"/>
+              <TextBlock Text="Account Status" Classes="stat-label"/>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      
+      <Grid Grid.Row="2" 
+            ColumnDefinitions="*,*,*" 
+            RowDefinitions="Auto" 
+            Margin="0,0,0,24">
+        
+        
+        <Border Grid.Column="0" Classes="stat-card" Margin="0,0,12,0">
+          <StackPanel Spacing="12">
+            <TextBlock Text="🎵" FontSize="32"/>
+            <TextBlock x:Name="TotalMinutesText" 
+                       Text="0" 
+                       Classes="stat-value"/>
+            <TextBlock Text="Minutes Listened" Classes="stat-label"/>
+            <TextBlock x:Name="HoursText" 
+                       Text="0 hours" 
+                       FontSize="12" 
+                       Foreground="#808080"/>
+          </StackPanel>
+        </Border>
+
+        
+        <Border Grid.Column="1" Classes="stat-card" Margin="6,0">
+          <StackPanel Spacing="12">
+            <TextBlock Text="🎼" FontSize="32"/>
+            <TextBlock x:Name="TracksPlayedText" 
+                       Text="0" 
+                       Classes="stat-value"/>
+            <TextBlock Text="Tracks Played" Classes="stat-label"/>
+            <TextBlock Text="All time" 
+                       FontSize="12" 
+                       Foreground="#808080"/>
+          </StackPanel>
+        </Border>
+
+      
+        <Border Grid.Column="2" Classes="stat-card" Margin="12,0,0,0">
+          <StackPanel Spacing="12">
+            <TextBlock Text="⭐" FontSize="32"/>
+            <TextBlock x:Name="FavoriteCountText" 
+                       Text="0" 
+                       Classes="stat-value"/>
+            <TextBlock Text="Favorite Songs" Classes="stat-label"/>
+            <TextBlock Text="Marked as favorite" 
+                       FontSize="12" 
+                       Foreground="#808080"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+     
+      <Border Grid.Row="3" Classes="stat-card">
+        <StackPanel Spacing="16">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="🔥" FontSize="24" VerticalAlignment="Center"/>
+            <TextBlock Text="Your Top Tracks" 
+                       FontSize="20" 
+                       FontWeight="SemiBold" 
+                       Foreground="#FFFFFF"
+                       VerticalAlignment="Center"/>
+          </StackPanel>
+
+         <ItemsControl x:Name="TopSongsItemsControl">
+  <ItemsControl.ItemTemplate>
+    <DataTemplate DataType="views:TopSongItem">
+      <Border Classes="top-song">
+        <Grid ColumnDefinitions="40,60,*,120">
+          
+          <TextBlock Grid.Column="0" 
+                     Text="{Binding Rank}" 
+                     FontSize="20" 
+                     FontWeight="Bold"
+                     Foreground="#1DB954"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"/>
+          
+         
+          <Border Grid.Column="1" 
+                  Width="48" 
+                  Height="48" 
+                  CornerRadius="8" 
+                  ClipToBounds="True"
+                  Background="#0F0F0F"
+                  Margin="0,0,12,0">
+            <Image Source="{Binding Track.Art}" Stretch="UniformToFill"/>
+          </Border>
+
+          
+          <StackPanel Grid.Column="2" 
+                      VerticalAlignment="Center" 
+                      Spacing="4">
+            <TextBlock Text="{Binding Track.Title}" 
+                       FontSize="15" 
+                       FontWeight="SemiBold"
+                       Foreground="#FFFFFF"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Track.Artist}" 
+                       FontSize="13" 
+                       Foreground="#B3B3B3"
+                       TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+
+        
+          <StackPanel Grid.Column="3" 
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Right">
+            <TextBlock Text="{Binding PlayCount, StringFormat='{}{0} plays'}" 
+                       FontSize="14" 
+                       FontWeight="SemiBold"
+                       Foreground="#FFFFFF"
+                       HorizontalAlignment="Right"/>
+            <TextBlock Text="{Binding TotalMinutes, StringFormat='{}{0} min'}" 
+                       FontSize="12" 
+                       Foreground="#808080"
+                       HorizontalAlignment="Right"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </ItemsControl.ItemTemplate>
+</ItemsControl>
+
+         
+          <StackPanel x:Name="EmptyState" 
+                      Spacing="12" 
+                      HorizontalAlignment="Center"
+                      Margin="0,40"
+                      IsVisible="False">
+            <TextBlock Text="🎧" 
+                       FontSize="48" 
+                       HorizontalAlignment="Center"
+                       Opacity="0.5"/>
+            <TextBlock Text="No listening history yet" 
+                       FontSize="16" 
+                       Foreground="#B3B3B3"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Start playing some music to see your stats!" 
+                       FontSize="13" 
+                       Foreground="#808080"
+                       HorizontalAlignment="Center"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

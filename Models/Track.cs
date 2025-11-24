@@ -1,98 +1,151 @@
-using System;
-using System.ComponentModel;
-using System.IO;
 using Avalonia.Media.Imaging;
-using TagLib;
-using TrackModel = MusicPlayerApp.Models.Track;
+using System;
+using System.IO;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
-namespace MusicPlayerApp.Models
+namespace MusicPlayerApp.Models;
+
+public class Track : INotifyPropertyChanged
 {
-    public class Track : INotifyPropertyChanged
+    private string _path;
+    private string? _title;
+    private string? _artist;
+    private string? _album;
+    private TimeSpan _duration;
+    private Bitmap? _art;
+    private DateTime _dateAdded;
+    private bool _isFavorite;
+    private int _index;
+    private bool _metadataLoaded;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public Track(string path)
     {
-        public string Path { get; }
-        public string Title { get; }
-        public string Artist { get; }
-        public string Album { get; }
-        public Bitmap? Art { get; }
-        public TimeSpan Duration { get; }
-        public string DurationString => Duration.TotalHours >= 1 ? Duration.ToString(@"h\:mm\:ss") : Duration.ToString(@"m\:ss");
+        _path = path;
+        _dateAdded = DateTime.Now;
+        _metadataLoaded = false;
+    }
 
-        public DateTime DateAdded { get; }
-        public string DateAddedString => DateAdded.ToString("yyyy-MM-dd");
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
-        int _index;
-        public int Index
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
+    }
+
+    public string Path
+    {
+        get => _path;
+        set => SetProperty(ref _path, value);
+    }
+
+    public string Title
+    {
+        get
         {
-            get { return _index; }
-            set
-            {
-                if (_index != value)
-                {
-                    _index = value;
-                    OnPropertyChanged(nameof(Index));
-                }
-            }
+            EnsureMetadataLoaded();
+            return _title ?? System.IO.Path.GetFileNameWithoutExtension(_path);
         }
+        private set => SetProperty(ref _title, value);
+    }
 
-        bool _isFavorite;
-        public bool IsFavorite
+    public string Artist
+    {
+        get
         {
-            get { return _isFavorite; }
-            set
-            {
-                if (_isFavorite != value)
-                {
-                    _isFavorite = value;
-                    OnPropertyChanged(nameof(IsFavorite));
-                }
-            }
+            EnsureMetadataLoaded();
+            return _artist ?? "Unknown Artist";
         }
+        private set => SetProperty(ref _artist, value);
+    }
 
-        public Track(string path)
+    public string Album
+    {
+        get
         {
-            Path = path;
+            EnsureMetadataLoaded();
+            return _album ?? "Unknown Album";
+        }
+        private set => SetProperty(ref _album, value);
+    }
 
-            var f = TagLib.File.Create(path);
+    public TimeSpan Duration
+    {
+        get
+        {
+            EnsureMetadataLoaded();
+            return _duration;
+        }
+        private set => SetProperty(ref _duration, value);
+    }
 
-            if (string.IsNullOrWhiteSpace(f.Tag.Title))
-                Title = System.IO.Path.GetFileNameWithoutExtension(path);
-            else
-                Title = f.Tag.Title;
+    public Bitmap? Art
+    {
+        get
+        {
+            EnsureMetadataLoaded();
+            return _art;
+        }
+        private set => SetProperty(ref _art, value);
+    }
 
-            Artist = string.IsNullOrWhiteSpace(f.Tag.FirstPerformer) ? "Unknown Artist" : f.Tag.FirstPerformer;
-            Album = string.IsNullOrWhiteSpace(f.Tag.Album) ? "Unknown Album" : f.Tag.Album;
+    public DateTime DateAdded
+    {
+        get => _dateAdded;
+        set => SetProperty(ref _dateAdded, value);
+    }
 
-            if (f.Tag.Pictures != null && f.Tag.Pictures.Length > 0)
+    public bool IsFavorite
+    {
+        get => _isFavorite;
+        set => SetProperty(ref _isFavorite, value);
+    }
+
+    public int Index
+    {
+        get => _index;
+        set => SetProperty(ref _index, value);
+    }
+
+    public string DateAddedString => _dateAdded.ToString("yyyy-MM-dd");
+    public string DurationString => _duration.ToString(@"m\:ss");
+
+    private void EnsureMetadataLoaded()
+    {
+        if (_metadataLoaded) return;
+        
+        try
+        {
+            using var file = TagLib.File.Create(_path);
+            _title = file.Tag.Title;
+            _artist = file.Tag.FirstPerformer;
+            _album = file.Tag.Album;
+            _duration = file.Properties.Duration;
+
+            // Load album art (this is the expensive part)
+            if (file.Tag.Pictures.Length > 0)
             {
-                var pic = f.Tag.Pictures[0];
+                var pic = file.Tag.Pictures[0];
                 using var ms = new MemoryStream(pic.Data.Data);
-                Art = new Bitmap(ms);
-            }
-
-            Duration = f.Properties.Duration;
-
-            try
-            {
-                DateAdded = System.IO.File.GetCreationTime(path);
-            }
-            catch
-            {
-                DateAdded = DateTime.Now;
+                _art = new Bitmap(ms);
             }
         }
+        catch { }
 
-        public override string ToString()
-        {
-            return Artist + " – " + Title;
-        }
+        _metadataLoaded = true;
+    }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        void OnPropertyChanged(string propertyName)
-        {
-            var h = PropertyChanged;
-            if (h != null)
-                h(this, new PropertyChangedEventArgs(propertyName));
-        }
+    // Force metadata load for when you're actually playing
+    public void LoadMetadata()
+    {
+        EnsureMetadataLoaded();
     }
 }

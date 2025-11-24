@@ -52,32 +52,40 @@
         </Canvas>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <RowDefinition Height="*"/>
+    <RowDefinition Height="Auto"/>
+</Grid.RowDefinitions>
 
-        <StackPanel HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="28">
+<StackPanel HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="28">
 
-            <Border Width="620"
-                    Height="620"
-                    CornerRadius="22"
-                    ClipToBounds="True"
-                    Background="#181818">
+   <Border Width="620"
+        Height="620"
+        CornerRadius="22"
+        ClipToBounds="True"
+        Background="#181818">
 
-                <Image Name="FS_AlbumArt"
-                       Stretch="UniformToFill"/>
-            </Border>
+    <Border.Effect>
+        <DropShadowEffect BlurRadius="38"
+                          Opacity="0.40"
+                          Color="#000000"
+                          OffsetX="0"
+                          OffsetY="0"/>
+    </Border.Effect>
 
-            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                <TextBlock Name="FS_Title"
-                           FontSize="40"
-                           FontWeight="SemiBold"
-                           TextAlignment="Center"
-                           Foreground="#1ed660"
-                           
-                           />
+    <Image Name="FS_AlbumArt"
+           Stretch="UniformToFill"/>
+</Border>
+
+
+    <StackPanel Spacing="8" HorizontalAlignment="Center">
+        <TextBlock Name="FS_Title"
+                   FontSize="40"
+                   FontWeight="SemiBold"
+                   TextAlignment="Center"
+                   Foreground="#1ed660"/>
+
 
                 <TextBlock Name="FS_Artist"
                            FontSize="24"
@@ -104,30 +112,24 @@
                            Foreground="#CCCCCC"
                            Margin="0,0,8,0"/>
 
-                <Slider Name="FS_Slider"
-                        Grid.Column="1"
-                        Minimum="0"
-                        Maximum="100"
-                        Height="18"
-                        IsEnabled="True">
+                <Border Grid.Column="1"
+        x:Name="SeekBarContainer"
+        Height="8"
+        Background="#4A4A4A"
+        CornerRadius="4"
+        VerticalAlignment="Center"
+        PointerPressed="SeekBarPressed"
+        PointerMoved="SeekBarMoved"
+        PointerReleased="SeekBarReleased"
+        PointerCaptureLost="SeekBarCaptureLost">
 
-                    <Slider.Styles>
-                        <Style Selector="Slider /template/ Track /template/ Rectangle#PART_Track">
-                            <Setter Property="Height" Value="4"/>
-                            <Setter Property="Fill" Value="#2a2a2a"/>
-                        </Style>
-
-                        <Style Selector="Slider /template/ Track /template/ Rectangle#PART_Indicator">
-                            <Setter Property="Height" Value="4"/>
-                            <Setter Property="Fill" Value="#1DB954"/>
-                        </Style>
-
-                        <Style Selector="Slider /template/ Thumb">
-                            <Setter Property="Width" Value="0"/>
-                            <Setter Property="Height" Value="0"/>
-                        </Style>
-                    </Slider.Styles>
-                </Slider>
+    <Border x:Name="SeekBarFill"
+            Height="8"
+            Background="#1DB954"
+            CornerRadius="4"
+            HorizontalAlignment="Left"
+            Width="0"/>
+</Border>
 
                 <TextBlock Name="FS_Total"
                            Grid.Column="2"

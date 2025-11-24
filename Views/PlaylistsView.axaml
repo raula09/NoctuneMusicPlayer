@@ -1,0 +1,217 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:MusicPlayerApp.Models"
+             x:Class="MusicPlayerApp.Views.PlaylistsView"
+             Background="#000000"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:conv="using:MusicPlayerApp.Converters"
+
+>
+<UserControl.Resources>
+    <conv:StringNotEmptyConverter x:Key="StringNotEmpty"/>
+    <conv:StringNotEmptyConverter x:Key="StringEmpty" Invert="True"/>
+</UserControl.Resources>
+
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#282828"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="#3E3E3E"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid>
+    <Grid RowDefinitions="Auto,*" Margin="24" ZIndex="1">
+      <StackPanel Grid.Row="0" Spacing="16" Margin="0,0,0,24">
+        <TextBlock Text="Your Playlists" FontSize="32" FontWeight="Bold"/>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+
+          <Button x:Name="BackToPlayerButton" Background="#535353">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="←" FontSize="16" FontWeight="Bold"/>
+              <TextBlock Text="Back to Player"/>
+            </StackPanel>
+          </Button>
+
+          <Button x:Name="CreatePlaylistButton"
+                  Background="#1DB954"
+                  Foreground="#000000">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="+" FontSize="18" FontWeight="Bold"/>
+              <TextBlock Text="Create Playlist"/>
+            </StackPanel>
+          </Button>
+
+          <Button x:Name="RefreshButton">
+            <TextBlock Text="🔄 Refresh"/>
+          </Button>
+
+        </StackPanel>
+      </StackPanel>
+
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="PlaylistsItemsControl">
+
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="models:PlaylistDto">
+
+              <Border Background="#181818"
+                      CornerRadius="12"
+                      Padding="16"
+                      Margin="0,0,16,16"
+                      Width="200">
+
+                <StackPanel Spacing="12">
+
+                  <Border Width="168"
+        Height="168"
+        CornerRadius="8"
+        Background="#282828">
+  <Grid>
+    <Image Source="{Binding ImagePath}" 
+       Stretch="UniformToFill"
+       IsVisible="{Binding ImagePath, Converter={StaticResource StringNotEmpty}}"/>
+
+<TextBlock Text="🎵"
+           FontSize="64"
+           Foreground="#535353"
+           HorizontalAlignment="Center"
+           VerticalAlignment="Center"
+           IsVisible="{Binding ImagePath, Converter={StaticResource StringEmpty}}"/>
+
+  </Grid>
+</Border>
+
+
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Name}"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"/>
+
+                    <TextBlock Foreground="#B3B3B3"
+                               FontSize="12">
+                      <Run Text="{Binding TrackCount}"/>
+                      <Run Text=" tracks"/>
+                    </TextBlock>
+
+                    <TextBlock Text="{Binding Description}"
+                               Foreground="#9B9B9B"
+                               FontSize="11"
+                               MaxLines="2"
+                               TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+
+                    <Button Tag="{Binding Id}"
+                            Background="#1DB954"
+                            Foreground="#000"
+                            Padding="8,4"
+                            Click="OnOpenPlaylistClick">
+                      <TextBlock Text="Open"/>
+                    </Button>
+
+                    <Button Tag="{Binding Id}"
+                            Background="#E22134"
+                            Foreground="#FFF"
+                            Padding="8,4"
+                            Click="OnDeletePlaylistClick">
+                      <TextBlock Text="Delete"/>
+                    </Button>
+
+                  </StackPanel>
+
+                </StackPanel>
+
+              </Border>
+
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+
+        </ItemsControl>
+      </ScrollViewer>
+
+    </Grid>
+
+    <Border x:Name="ForceCreateOverlay"
+            Background="#000000AA"
+            IsVisible="False"
+            ZIndex="999"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
+
+      <Border Width="420"
+              Background="#121212"
+              CornerRadius="16"
+              Padding="24"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+
+        <StackPanel Spacing="16">
+
+          <TextBlock Text="Create Your First Playlist"
+                     FontSize="24"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Center"/>
+
+          <TextBlock Text="You need at least one playlist to continue."
+                     Foreground="#B3B3B3"
+                     FontSize="13"
+                     HorizontalAlignment="Center"
+                     Margin="0,0,0,10"/>
+
+          <TextBox x:Name="ForceNameBox"
+                   Watermark="Playlist name"
+                   Background="#282828"
+                   Foreground="#FFFFFF"
+                   BorderBrush="#535353"
+                   CornerRadius="6"
+                   Padding="8"/>
+
+          <TextBox x:Name="ForceDescBox"
+                   Watermark="Description (optional)"
+                   Background="#282828"
+                   Foreground="#FFFFFF"
+                   BorderBrush="#535353"
+                   CornerRadius="6"
+                   Padding="8"/>
+
+          <Button x:Name="ForceCreateButton"
+                  Background="#1DB954"
+                  Foreground="#000000"
+                  Padding="12"
+                  CornerRadius="8"
+                  FontSize="14"
+                  HorizontalAlignment="Stretch">
+            Create Playlist
+          </Button>
+
+        </StackPanel>
+
+      </Border>
+
+    </Border>
+
+  </Grid>
+</UserControl>

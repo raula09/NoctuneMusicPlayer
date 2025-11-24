@@ -1,0 +1,182 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MusicPlayerApp.Views.RegisterView">
+  
+  <UserControl.Styles>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#333333"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="14,12"/>
+      <Setter Property="FontSize" Value="14"/>
+    </Style>
+    
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#1DB954"/>
+      <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+    
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#444444"/>
+    </Style>
+    
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#1DB954"/>
+      <Setter Property="Foreground" Value="#000000"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="24"/>
+      <Setter Property="Padding" Value="32,12"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="#1ED760"/>
+    </Style>
+    
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#B3B3B3"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#333333"/>
+      <Setter Property="CornerRadius" Value="24"/>
+      <Setter Property="Padding" Value="32,12"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    
+    <Style Selector="Button.secondary:pointerover">
+      <Setter Property="BorderBrush" Value="#FFFFFF"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="#B3B3B3"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+
+    <Style Selector="Border.info-box">
+      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="BorderBrush" Value="#1DB954"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="16,12"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid>
+
+    <Border>
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#000000" Offset="0"/>
+          <GradientStop Color="#0D0D0D" Offset="1"/>
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
+
+    <Grid RowDefinitions="Auto,*,Auto" MaxWidth="400" Margin="60,40">
+      
+      <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,40">
+        <TextBlock Text="♪" 
+                   FontSize="48" 
+                   Foreground="#1DB954"
+                   HorizontalAlignment="Center"
+                   FontWeight="Bold"/>
+        <TextBlock Text="Create your account"
+                   FontSize="32"
+                   FontWeight="Bold"
+                   Foreground="#FFFFFF"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Text="Join Noctune today"
+                   FontSize="14"
+                   Foreground="#B3B3B3"
+                   HorizontalAlignment="Center"
+                   Margin="0,4,0,0"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="1" Spacing="20">
+     
+        <StackPanel Spacing="20" x:Name="CredentialsPanel">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Email" Classes="label"/>
+            <TextBox x:Name="EmailTextBox"
+                     Watermark="Enter your email"/>
+          </StackPanel>
+          
+          <StackPanel Spacing="8">
+            <TextBlock Text="Password" Classes="label"/>
+            <TextBox x:Name="PasswordTextBox"
+                     PasswordChar="●"
+                     Watermark="Create a password"/>
+          </StackPanel>
+        </StackPanel>
+
+      
+        <StackPanel Spacing="20" 
+                    x:Name="VerificationPanel"
+                    IsVisible="False">
+          
+          <Border Classes="info-box">
+            <StackPanel Spacing="4">
+              <TextBlock Text="✓ Registration Successful!" 
+                         Foreground="#1DB954"
+                         FontWeight="SemiBold"
+                         FontSize="14"/>
+              <TextBlock Text="We've sent a 6-digit code to your email"
+                         Foreground="#B3B3B3"
+                         FontSize="12"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Spacing="8">
+            <TextBlock Text="Verification Code" Classes="label"/>
+            <TextBox x:Name="VerificationCodeTextBox"
+                     Watermark="Enter 6-digit code"
+                     MaxLength="6"
+                     FontSize="20"
+                     LetterSpacing="4"
+                     TextAlignment="Center"
+                     FontWeight="SemiBold"/>
+          </StackPanel>
+        </StackPanel>
+      </StackPanel>
+
+      
+      <StackPanel Grid.Row="2" Spacing="16" Margin="0,40,0,0">
+        <Button Content="Create Account" 
+                Classes="primary"
+                HorizontalAlignment="Stretch"
+                Click="OnRegisterClick"
+                x:Name="RegisterButton"/>
+        
+        <Button Content="Verify Email" 
+                Classes="primary"
+                HorizontalAlignment="Stretch"
+                Click="OnVerifyClick"
+                x:Name="VerifyButton"
+                IsVisible="False"/>
+        
+        <StackPanel Orientation="Horizontal" 
+                    HorizontalAlignment="Center"
+                    Spacing="8">
+                    
+          <TextBlock Text="Already have an account?"
+                     Foreground="#B3B3B3"
+                     VerticalAlignment="Center"
+                     FontSize="13"/>
+          <Button Content="Sign In" 
+                  Classes="secondary"
+                  Padding="24,8"
+                  Click="OnBackClick"/>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

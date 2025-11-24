@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:MusicPlayerApp.Models"
+             x:Class="MusicPlayerApp.Views.PlaylistDetailView"
+             Background="#000000">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#282828"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="#3E3E3E"/>
+    </Style>
+
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+
+    <Style Selector="ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#2A2A2A"/>
+    </Style>
+
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="#333333"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,*" Margin="24">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
+      <Border Grid.Column="0"
+              Width="200"
+              Height="200"
+              CornerRadius="12"
+              Background="#282828"
+              ClipToBounds="True">
+        <TextBlock Text="🎵"
+                   FontSize="72"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="#535353"/>
+      </Border>
+
+      <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center" Spacing="12">
+        <TextBlock Text="PLAYLIST" FontSize="11" Foreground="#B3B3B3" FontWeight="Bold"/>
+        <TextBlock x:Name="PlaylistNameText" FontSize="48" FontWeight="Bold"/>
+        <TextBlock x:Name="PlaylistDescText" FontSize="14" Foreground="#B3B3B3"/>
+        <TextBlock x:Name="PlaylistInfoText" FontSize="12" Foreground="#9B9B9B"/>
+
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+          <Button x:Name="BackButton" Background="#535353">
+            <TextBlock Text="← Back"/>
+          </Button>
+
+          <Button x:Name="PlayAllButton" Background="#1DB954" Foreground="#000000">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="▶" FontSize="14"/>
+              <TextBlock Text="Play All"/>
+            </StackPanel>
+          </Button>
+
+          <Button x:Name="AddTracksButton">
+            <TextBlock Text="+ Add Tracks"/>
+          </Button>
+
+          <Button x:Name="EditButton">
+            <TextBlock Text="✏️ Edit"/>
+          </Button>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="1" Background="#181818" CornerRadius="12" Padding="16">
+      <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="40,*,200,120"
+              Margin="8,0,8,12"
+              Height="32">
+          <TextBlock Grid.Column="0" Text="#" Foreground="#B3B3B3" FontSize="12"/>
+          <TextBlock Grid.Column="1" Text="TITLE" Foreground="#B3B3B3" FontSize="12"/>
+          <TextBlock Grid.Column="2" Text="ALBUM" Foreground="#B3B3B3" FontSize="12"/>
+          <TextBlock Grid.Column="3" Text="DATE ADDED" Foreground="#B3B3B3" FontSize="12"/>
+        </Grid>
+
+        <ListBox x:Name="TracksListBox"
+                 Grid.Row="1"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="models:Track">
+              <Border Background="Transparent" Padding="4" CornerRadius="8">
+                <Grid ColumnDefinitions="40,*,200,120,60">
+                  <TextBlock Grid.Column="0"
+                             Text="{Binding Index}"
+                             Foreground="#B3B3B3"
+                             HorizontalAlignment="Center"/>
+
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="14"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Artist}"
+                               FontSize="12"
+                               Foreground="#B3B3B3"
+                               TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding Album}"
+                             Foreground="#A0A0A0"
+                             FontSize="12"
+                             TextTrimming="CharacterEllipsis"/>
+
+                  <TextBlock Grid.Column="3"
+                             Text="{Binding DateAddedString}"
+                             Foreground="#808080"
+                             FontSize="12"/>
+
+                  <Button Grid.Column="4"
+                          x:Name="RemoveTrackButton"
+                          Tag="{Binding Path}"
+                          Click="OnRemoveButtonClick"
+                          Background="Transparent"
+                          Padding="8,4"
+                          HorizontalAlignment="Right">
+                    <TextBlock Text="×" FontSize="18" Foreground="#B3B3B3"/>
+                  </Button>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Play" x:Name="PlayTrackMenuItem" Click="OnPlayTrackClick"/>
+              <MenuItem Header="Remove from Playlist" x:Name="RemoveTrackMenuItem" Click="OnRemoveTrackClick"/>
+            </ContextMenu>
+          </ListBox.ContextMenu>
+        </ListBox>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>
