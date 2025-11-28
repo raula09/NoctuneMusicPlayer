@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -28,9 +30,8 @@ using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Text;
 using TrackModel = MusicPlayerApp.Models.Track;
-using Avalonia;
-using Avalonia.Controls.Presenters;
-
+using LiteDB;
+using System.Text.RegularExpressions;
 namespace MusicPlayerApp;
 
 public class QueueEntry
@@ -62,19 +63,16 @@ public partial class MainWindow : UserControl
     const int VisualBarCount = 120;
 
     readonly object _audioLock = new();
-
+    private TrackModel? _lastFullscreenTrack;
     private ObservableCollection<TrackModel> _playlist = new();
     private ObservableCollection<TrackModel> _viewTracks = new();
     private ObservableCollection<QueueEntry> _queuePreview = new();
-
+    private LyricsDisplay? _lyricsDisplay;
+    private TrackModel? _currentTrack;
     double _seekMax = 1;
     bool _seeking = false;
 
     FullscreenPlayer? _fullscreen;
-    private Border _forceOverlay;
-    private TextBox _forceName;
-    private TextBox _forceDesc;
-    private Button _forceBtn;
 
     PipeWireCapture? _capture;
     VisualizerService _visualizer = new();
@@ -106,8 +104,10 @@ public partial class MainWindow : UserControl
     private Dictionary<TrackModel, int> _playHistory = new Dictionary<TrackModel, int>();
     private List<ListeningSession> _listeningSessions = new List<ListeningSession>();
     private DateTime _accountCreated;
-    private string _userEmail;
+    private string _userEmail = "user@example.com";
     private readonly string? _token;
+
+    DispatcherTimer waveTimer;
 
     public MainWindow(string? token)
     {
@@ -116,7 +116,8 @@ public partial class MainWindow : UserControl
         Core.Initialize();
         WireForcedPlaylistUI();
         _ = SyncService.SyncAsync(_token);
-
+        InitWaveAnimation();
+        InitializeLyrics();
         OpenPlaylistsButton = this.FindControl<Button>("OpenPlaylistsButton");
         if (OpenPlaylistsButton != null)
             OpenPlaylistsButton.Click += OnPlaylistsButtonClick;
@@ -124,7 +125,7 @@ public partial class MainWindow : UserControl
         _playHistory = StatsService.LoadPlayHistory() ?? new Dictionary<TrackModel, int>();
         _listeningSessions = StatsService.LoadListeningSessions() ?? new List<ListeningSession>();
         _accountCreated = StatsService.LoadAccountCreatedDate();
-
+       
         if (!string.IsNullOrEmpty(token))
         {
             _userEmail = GetEmailFromToken(token);
@@ -132,11 +133,18 @@ public partial class MainWindow : UserControl
         }
         else
         {
-            _userEmail = StatsService.LoadUserEmail();
+            var stored = StatsService.LoadUserEmail();
+            if (!string.IsNullOrEmpty(stored))
+                _userEmail = stored;
         }
 
         AttachedToVisualTree += (_, _) => Focus();
         KeyDown += MainWindow_KeyDown;
+        var lyricsToggleButton = this.FindControl<Button>("LyricsToggleButton");
+        if (lyricsToggleButton != null)
+        {
+            lyricsToggleButton.Click += OnLyricsToggleClick;
+        }
 
         MiniPrev.Click += (_, _) => Prev(null, new RoutedEventArgs());
         MiniNext.Click += (_, _) => Next(null, new RoutedEventArgs());
@@ -146,7 +154,6 @@ public partial class MainWindow : UserControl
         FullscreenButton.Click += (_, _) => ShowFullscreen();
 
         _libVLC = new LibVLC("--aout=alsa");
-
         _mp = new MediaPlayer(_libVLC);
 
         _capture = new PipeWireCapture(
@@ -162,9 +169,29 @@ public partial class MainWindow : UserControl
         Height = _settings.WindowHeight;
         VolumeSlider.Value = _settings.Volume;
 
+        var savedTracks = LoadAllTracks();
+        var loadedPaths = new HashSet<string>();
+
+        foreach (var track in savedTracks)
+        {
+            if (File.Exists(track.Path))
+            {
+                _playlist.Add(track);
+                loadedPaths.Add(track.Path);
+            }
+        }
+
         foreach (var p in _settings.Playlist)
-            if (File.Exists(p))
-                _playlist.Add(new TrackModel(p));
+        {
+            if (File.Exists(p) && !loadedPaths.Contains(p))
+            {
+                var newTrack = new TrackModel(p);
+                _playlist.Add(newTrack);
+                SaveTrack(newTrack);
+            }
+        }
+
+        Console.WriteLine($"✓ Total tracks in playlist: {_playlist.Count}");
 
         RebuildView();
         _index = _settings.LastIndex;
@@ -181,32 +208,74 @@ public partial class MainWindow : UserControl
         _mp.LengthChanged += MediaPlayer_LengthChanged;
 
         PlaylistBox.SelectionChanged += PlaylistBox_SelectionChanged;
-       
 
         PlayContextMenuItem.Click += PlayContextMenuItem_Click;
         RemoveContextMenuItem.Click += RemoveContextMenuItem_Click;
         OpenFolderContextMenuItem.Click += OpenFolderContextMenuItem_Click;
         AddToPlaylistMenuItem.Click += AddToPlaylist;
-
+        UploadLyricsMenuItem.Click += UploadLyrics_Click;
         PlayPauseButton.Click += PlayPause;
         PrevButton.Click += Prev;
         NextButton.Click += Next;
 
         VolumeSlider.ValueChanged += VolumeChanged;
+       
+   
 
-PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingStrategies.Tunnel);
+        PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingStrategies.Tunnel);
 
         SearchBox.PropertyChanged += SearchBox_PropertyChanged;
         SortBox.SelectionChanged += SortBox_SelectionChanged;
 
         AlbumArt.DoubleTapped += AlbumArt_DoubleTapped;
 
-    
-
         InitVisualizer();
         InitPositionTimer();
     }
+    private void InitializeLyrics()
+    {
+        _lyricsDisplay = this.FindControl<LyricsDisplay>("LyricsDisplay");
     
+        if (_lyricsDisplay != null)
+        {
+            _lyricsDisplay.LyricsLoaded += (sender, lyricsContent) =>
+            {
+                if (_currentTrack != null)
+                {
+                    _currentTrack.LyricsData = lyricsContent;
+                    SaveTrackLyrics(_currentTrack);
+                }
+            };
+        }
+    }
+    private void SaveTrackLyrics(TrackModel track)
+    {
+        SaveTrack(track);
+    }
+
+  
+    private void LoadTrackLyrics(TrackModel track)
+    {
+        try
+        {
+            using var db = new LiteDatabase(GetTrackDbPath());
+            var tracks = db.GetCollection<TrackModel>("tracks");
+        
+            tracks.EnsureIndex(x => x.Path);
+        
+            var existing = tracks.FindOne(t => t.Path == track.Path);
+            if (existing?.HasLyrics == true)
+            {
+                track.LyricsData = existing.LyricsData;
+                track.Id = existing.Id; 
+                Console.WriteLine($"✓ Loaded lyrics for: {track.Title}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error loading lyrics: {ex.Message}");
+        }
+    }
 
     private string GetEmailFromToken(string token)
     {
@@ -222,7 +291,33 @@ PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingS
             return "user@example.com";
         }
     }
-
+    private void OnLyricsToggleClick(object? sender, RoutedEventArgs e)
+    {
+        var lyricsPanel = this.FindControl<Border>("LyricsPanelContainer");
+        var mainContent = this.FindControl<Grid>("MainContentGrid");
+    
+        if (lyricsPanel != null)
+        {
+            if (lyricsPanel.IsVisible)
+            {
+                lyricsPanel.IsVisible = false;
+            
+                if (mainContent != null)
+                {
+                    mainContent.ColumnDefinitions[2].Width = new GridLength(0);
+                }
+            }
+            else
+            {
+                lyricsPanel.IsVisible = true;
+            
+                if (mainContent != null)
+                {
+                    mainContent.ColumnDefinitions[2].Width = new GridLength(350);
+                }
+            }
+        }
+    }
     private async void OnPlaylistsButtonClick(object? sender, RoutedEventArgs e)
     {
         var playlistsWindow = new Window
@@ -276,29 +371,29 @@ PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingS
 
         await playlistsWindow.ShowDialog((Window)VisualRoot!);
     }
-private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
-{
-    var visual = e.Source as Visual;
-    var presenter = visual?.FindAncestorOfType<ContentPresenter>();
 
-    if (presenter?.DataContext is QueueEntry entry)
+    private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        var track = entry.Track;
-        int index = _playlist.IndexOf(track);
+        var visual = e.Source as Visual;
+        var presenter = visual?.FindAncestorOfType<ContentPresenter>();
 
-        if (index >= 0)
+        if (presenter?.DataContext is QueueEntry entry)
         {
-            _index = index;
-            RebuildShuffleQueue();
-            PlayIndex();
+            var track = entry.Track;
+            int index = _playlist.IndexOf(track);
 
-            var viewIndex = _viewTracks.IndexOf(track);
-            if (viewIndex >= 0)
-                PlaylistBox.SelectedIndex = viewIndex;
+            if (index >= 0)
+            {
+                _index = index;
+                RebuildShuffleQueue();
+                PlayIndex();
+
+                var viewIndex = _viewTracks.IndexOf(track);
+                if (viewIndex >= 0)
+                    PlaylistBox.SelectedIndex = viewIndex;
+            }
         }
     }
-}
-
 
     protected override void OnLoaded(RoutedEventArgs e)
     {
@@ -316,7 +411,76 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
 
         MainForceCreateButton.Click += MainForceCreateButton_Click;
     }
+    private void PlayTrack(TrackModel track)
+    {
+        _currentTrack = track;
+    
+        
+        if (_lyricsDisplay != null)
+        {
+            if (track.HasLyrics)
+            {
+                _lyricsDisplay.LoadLyricsFromString(track.LyricsData!);
+            }
+            else
+            {
+                _lyricsDisplay.ClearLyrics();
+            }
+        }
+    }
+    private void UpdateUI()
+    {
+        if (_mp
+            != null && _lyricsDisplay != null)
+        {
+            var pos = _mp.Time; 
+            if (pos > 0)
+            {
+                _lyricsDisplay.UpdatePosition(TimeSpan.FromMilliseconds(pos));
+            }
 
+        }
+    }
+    private async void UploadLyrics_Click(object? sender, RoutedEventArgs e)
+    {
+        if (PlaylistBox.SelectedItem is not TrackModel selectedTrack)
+            return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Lyrics File (.lrc)",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Lyrics Files")
+                {
+                    Patterns = new[] { "*.lrc", "*.txt" }
+                }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            var file = files[0];
+            using var stream = await file.OpenReadAsync();
+            using var reader = new StreamReader(stream);
+            string lyricsContent = await reader.ReadToEndAsync();
+
+            selectedTrack.LyricsData = lyricsContent;
+            SaveTrack(selectedTrack);
+
+            Console.WriteLine($"✓ Uploaded lyrics for: {selectedTrack.Title}");
+
+            if (_currentTrack != null && _currentTrack.Path == selectedTrack.Path && _lyricsDisplay != null)
+            {
+                _lyricsDisplay.LoadLyricsFromString(lyricsContent);
+            }
+        }
+    }
+   
     private async void MainForceCreateButton_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(MainForceNameBox.Text))
@@ -325,8 +489,11 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
         try
         {
             var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", _token);
+            if (!string.IsNullOrEmpty(_token))
+            {
+                http.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", _token);
+            }
 
             var payload = new
             {
@@ -414,6 +581,7 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
         StatsService.SavePlayHistory(_playHistory, _playlist);
     }
 
+    
     private void PlayIndex()
     {
         _mp.Stop();
@@ -424,10 +592,34 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
             return;
         }
 
+        UpdateTrackListPlayingState();
         SaveCurrentListeningSession();
 
         var t = _playlist[_index];
+        SaveTrack(t);
+
         t.LoadMetadata();
+
+        _currentTrack = t;
+        LoadTrackLyrics(t);
+    
+        if (_lyricsDisplay != null)
+        {
+            if (t.HasLyrics)
+            {
+                _lyricsDisplay.LoadLyricsFromString(t.LyricsData!);
+            }
+            else
+            {
+                _lyricsDisplay.ClearLyrics();
+            }
+        }
+  
+
+        _currentTrackStartTime = DateTime.Now;
+        _lastKnownPosition = 0;
+
+        TrackSongPlay(t);
 
         _currentTrackStartTime = DateTime.Now;
         _lastKnownPosition = 0;
@@ -452,6 +644,7 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
         if (vi >= 0)
             PlaylistBox.SelectedIndex = vi;
 
+        UpdateTrackListPlayingState();
         UpdateQueuePreview();
 
         _seekMax = _mp.Length > 0 ? _mp.Length : 1;
@@ -472,6 +665,48 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
                 }
             }
             _restoredLastPosition = true;
+        }
+    }
+
+    void UpdateTrackListPlayingState()
+    {
+        if (PlaylistBox == null)
+            return;
+
+        var generator = PlaylistBox.ItemContainerGenerator;
+        if (generator == null)
+            return;
+
+        int currentViewIndex = -1;
+        if (_index >= 0 && _index < _playlist.Count)
+        {
+            var currentTrack = _playlist[_index];
+            currentViewIndex = _viewTracks.IndexOf(currentTrack);
+        }
+
+        int itemCount = PlaylistBox.ItemCount;
+        for (int i = 0; i < itemCount; i++)
+        {
+            var container = generator.ContainerFromIndex(i) as Control;
+            if (container == null)
+                continue;
+
+            var wave = container.FindControl<ContentControl>("WaveIcon");
+            var indexText = container.FindControl<TextBlock>("TrackIndexText");
+
+            if (wave == null || indexText == null)
+                continue;
+
+            if (i == currentViewIndex && _mp.IsPlaying && !_isPaused)
+            {
+                wave.IsVisible = true;
+                indexText.IsVisible = false;
+            }
+            else
+            {
+                wave.IsVisible = false;
+                indexText.IsVisible = true;
+            }
         }
     }
 
@@ -621,7 +856,7 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
 
                 PlayPauseIcon.Source = new SvgImage
                 {
-                    Source = Avalonia.Svg.Skia.SvgSource.Load("avares://MusicPlayerApp/Images/play-solid-full.svg", null)
+                    Source = SvgSource.Load("avares://MusicPlayerApp/Images/play-solid-full.svg", null)
                 };
             }
             else
@@ -631,7 +866,7 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
 
                 PlayPauseIcon.Source = new SvgImage
                 {
-                    Source = Avalonia.Svg.Skia.SvgSource.Load("avares://MusicPlayerApp/Images/pause-solid-full.svg", null)
+                    Source = SvgSource.Load("avares://MusicPlayerApp/Images/pause-solid-full.svg", null)
                 };
             }
         }
@@ -639,6 +874,8 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
         {
             _isTogglingPlay = false;
         }
+
+        UpdateTrackListPlayingState();
     }
 
     async Task NextInternal()
@@ -659,14 +896,14 @@ private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
 
             int next = _staticShuffleQueue[0];
             _staticShuffleQueue.RemoveAt(0);
-         _index = next;
-PlayIndex();
+            _index = next;
+            PlayIndex();
         }
         else
         {
             int next = (_index + 1) % _playlist.Count;
-                   _index = next;
-PlayIndex();
+            _index = next;
+            PlayIndex();
         }
     }
 
@@ -683,22 +920,21 @@ PlayIndex();
             if (_history.Count > 0)
             {
                 int prevIndex = _history.Pop();
-                         _index = prevIndex;
-PlayIndex();
+                _index = prevIndex;
+                PlayIndex();
             }
             else
             {
                 int next = (_index - 1 + _playlist.Count) % _playlist.Count;
-               _index = next;
-PlayIndex();
-
+                _index = next;
+                PlayIndex();
             }
         }
         else
         {
             int next = (_index - 1 + _playlist.Count) % _playlist.Count;
-                    _index = next;
-PlayIndex();
+            _index = next;
+            PlayIndex();
         }
     }
 
@@ -761,11 +997,18 @@ PlayIndex();
                     double pct = t / (double)_seekMax;
                     SeekBarFill.Width = pct * SeekBarContainer.Bounds.Width;
                 }
+            
+                if (_lyricsDisplay != null && _lyricsDisplay.HasLyrics)
+                {
+                    _lyricsDisplay.UpdatePosition(TimeSpan.FromMilliseconds(t));
+                }
+              
             }
         }
         SyncFullscreen();
     }
 
+   
     void SyncFullscreen()
     {
         if (_fullscreen == null || !_fullscreen.IsVisible)
@@ -784,12 +1027,19 @@ PlayIndex();
         if (_index >= 0 && _index < _playlist.Count)
         {
             var t = _playlist[_index];
-            _fullscreen.UpdateTrack(
-                t.Art as Bitmap,
-                t.Title,
-                t.Artist,
-                t.Album,
-                t.DateAdded.Year.ToString());
+        
+            if (_lastFullscreenTrack != t)
+            {
+                _fullscreen.UpdateTrack(
+                    t.Art as Bitmap,
+                    t.Title,
+                    t.Artist,
+                    t.Album,
+                    t.DateAdded.Year.ToString());
+            
+                LoadFullscreenLyrics(t);
+                _lastFullscreenTrack = t;
+            }
         }
     }
 
@@ -877,6 +1127,9 @@ PlayIndex();
             t.Album,
             t.DateAdded.Year.ToString());
 
+        _lastFullscreenTrack = t;
+        LoadFullscreenLyrics(t);
+
         _fullscreen.PrevRequested += (_, _) => Prev(null, new RoutedEventArgs());
         _fullscreen.NextRequested += (_, _) => Next(null, new RoutedEventArgs());
         _fullscreen.PlayPauseRequested += (_, _) => PlayPause(null, new RoutedEventArgs());
@@ -897,51 +1150,120 @@ PlayIndex();
         _fullscreen.Closed += (_, _) =>
         {
             _fullscreen = null;
+            _lastFullscreenTrack = null; 
             Focus();
         };
 
         SyncFullscreen();
         _fullscreen.Show();
     }
+    
+    private void LoadFullscreenLyrics(TrackModel track)
+    {
+        if (_fullscreen == null) return;
 
-   void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+        if (track.HasLyrics && !string.IsNullOrEmpty(track.LyricsData))
+        {
+            var lyricsLines = ParseLyricsForFullscreen(track.LyricsData);
+            _fullscreen.LoadLyrics(lyricsLines);
+        }
+        else
+        {
+            _fullscreen.LoadLyrics(new List<LyricsLine>());
+        }
+    }
+private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
 {
-    var top = TopLevel.GetTopLevel(this);
-    var focused = top?.FocusManager?.GetFocusedElement();
-
-    if (focused is TextBox)
-        return;
-
-    if (e.Key == Key.Space)
+    var lines = new List<LyricsLine>();
+    
+    try
     {
-        e.Handled = true;
-        PlayPause(null, new RoutedEventArgs());
-        return;
+        var lrcLines = lrcContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var lrcPattern = @"\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)";
+        var parsedLines = new List<LyricsLine>();
+
+        foreach (var line in lrcLines)
+        {
+            var match = Regex.Match(line, lrcPattern);
+            if (match.Success)
+            {
+                int minutes = int.Parse(match.Groups[1].Value);
+                int seconds = int.Parse(match.Groups[2].Value);
+                int milliseconds = int.Parse(match.Groups[3].Value.PadRight(3, '0'));
+                string text = match.Groups[4].Value.Trim();
+
+                bool isInstrumental = string.IsNullOrWhiteSpace(text) || 
+                                    text == "♪" || 
+                                    text == "..." ||
+                                    text == "🎵";
+
+                parsedLines.Add(new LyricsLine
+                {
+                    StartTime = new TimeSpan(0, 0, minutes, seconds, milliseconds),
+                    Text = text,
+                    IsInstrumental = isInstrumental
+                });
+            }
+        }
+
+        for (int i = 0; i < parsedLines.Count; i++)
+        {
+            if (i < parsedLines.Count - 1)
+            {
+                parsedLines[i].EndTime = parsedLines[i + 1].StartTime;
+            }
+            else
+            {
+                parsedLines[i].EndTime = parsedLines[i].StartTime.Add(TimeSpan.FromSeconds(5));
+            }
+        }
+
+        return parsedLines;
     }
-
-    if (e.Key == Key.MediaPlayPause)
+    catch
     {
-        e.Handled = true;
-        PlayPause(null, new RoutedEventArgs());
-        return;
-    }
-
-    if (e.Key == Key.MediaNextTrack ||
-        (e.Key == Key.Right && e.KeyModifiers == KeyModifiers.Control))
-    {
-        e.Handled = true;
-        Next(null, new RoutedEventArgs());
-        return;
-    }
-
-    if (e.Key == Key.MediaPreviousTrack ||
-        (e.Key == Key.Left && e.KeyModifiers == KeyModifiers.Control))
-    {
-        e.Handled = true;
-        Prev(null, new RoutedEventArgs());
-        return;
+        return new List<LyricsLine>();
     }
 }
+    void MainWindow_KeyDown(object? sender, KeyEventArgs e)
+    {
+        var top = TopLevel.GetTopLevel(this);
+        var focused = top?.FocusManager?.GetFocusedElement();
+
+        if (focused is TextBox)
+            return;
+
+        if (e.Key == Key.Space)
+        {
+            e.Handled = true;
+            PlayPause(null, new RoutedEventArgs());
+            return;
+        }
+
+        if (e.Key == Key.MediaPlayPause)
+        {
+            e.Handled = true;
+            PlayPause(null, new RoutedEventArgs());
+            return;
+        }
+
+        if (e.Key == Key.MediaNextTrack ||
+            (e.Key == Key.Right && e.KeyModifiers == KeyModifiers.Control))
+        {
+            e.Handled = true;
+            Next(null, new RoutedEventArgs());
+            return;
+        }
+
+        if (e.Key == Key.MediaPreviousTrack ||
+            (e.Key == Key.Left && e.KeyModifiers == KeyModifiers.Control))
+        {
+            e.Handled = true;
+            Prev(null, new RoutedEventArgs());
+            return;
+        }
+    }
+
     async void AddClicked(object? s, RoutedEventArgs e)
     {
         var top = TopLevel.GetTopLevel(this);
@@ -1053,6 +1375,49 @@ PlayIndex();
         }
     }
 
+    void InitWaveAnimation()
+    {
+        waveTimer = new DispatcherTimer();
+        waveTimer.Interval = TimeSpan.FromMilliseconds(120);
+        waveTimer.Tick += (_, _) =>
+        {
+            if (!_mp.IsPlaying || _isPaused)
+                return;
+
+            if (PlaylistBox == null)
+                return;
+
+            if (_index < 0 || _index >= _playlist.Count)
+                return;
+
+            var currentTrack = _playlist[_index];
+            int viewIndex = _viewTracks.IndexOf(currentTrack);
+            if (viewIndex < 0 || viewIndex >= PlaylistBox.ItemCount)
+                return;
+
+            var generator = PlaylistBox.ItemContainerGenerator;
+            if (generator == null)
+                return;
+
+            var container = generator.ContainerFromIndex(viewIndex) as Control;
+            if (container == null)
+                return;
+
+            var bars = container.GetVisualDescendants()
+                .OfType<Border>()
+                .Where(b => Math.Abs(b.Width - 3) < 0.01)
+                .ToList();
+
+            if (bars.Count == 0)
+                return;
+
+            var rand = new Random();
+            foreach (var b in bars)
+                b.Height = rand.Next(5, 18);
+        };
+        waveTimer.Start();
+    }
+
     async void FileDrop(object? s, DragEventArgs e)
     {
         if (e.Data is not IDataObject data)
@@ -1068,7 +1433,11 @@ PlayIndex();
             if (path.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase) ||
                 path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) ||
                 path.EndsWith(".flac", StringComparison.OrdinalIgnoreCase))
-                _playlist.Add(new TrackModel(path));
+            {
+                var newTrack = new TrackModel(path);
+                _playlist.Add(newTrack);
+                SaveTrack(newTrack); 
+            }
         }
 
         RebuildView();
@@ -1083,6 +1452,16 @@ PlayIndex();
             UpdateQueuePreview();
         }
     }
+    string GetTrackDbPath()
+    {
+        var basePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Noctune");
+
+        Directory.CreateDirectory(basePath);
+        return Path.Combine(basePath, "music.db");
+    }
+
 
     void RebuildView()
     {
@@ -1127,6 +1506,7 @@ PlayIndex();
 
         RebuildShuffleQueue();
         UpdateQueuePreview();
+        UpdateTrackListPlayingState();
     }
 
     void SearchBox_PropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -1153,6 +1533,7 @@ PlayIndex();
             _index = i;
             RebuildShuffleQueue();
             UpdateQueuePreview();
+            UpdateTrackListPlayingState();
             return;
         }
 
@@ -1161,30 +1542,27 @@ PlayIndex();
         PlayIndex();
     }
 
-   void PlaylistBox_PointerPressed(object? sender, PointerPressedEventArgs e)
-{
-    var point = e.GetCurrentPoint(PlaylistBox);
-    var props = point.Properties;
-
-   
-    if (props.IsRightButtonPressed)
+    void PlaylistBox_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        e.Handled = true;
-        return;
+        var point = e.GetCurrentPoint(PlaylistBox);
+        var props = point.Properties;
+
+        if (props.IsRightButtonPressed)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (props.IsMiddleButtonPressed)
+        {
+            var item = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>();
+            if (item?.DataContext is TrackModel track)
+                track.IsFavorite = !track.IsFavorite;
+
+            e.Handled = true;
+            return;
+        }
     }
-
-    
-    if (props.IsMiddleButtonPressed)
-    {
-        var item = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>();
-        if (item?.DataContext is TrackModel track)
-            track.IsFavorite = !track.IsFavorite;
-
-        e.Handled = true;
-        return;
-    }
-}
-
 
     void AlbumArt_DoubleTapped(object? sender, RoutedEventArgs e)
     {
@@ -1224,6 +1602,53 @@ PlayIndex();
         foreach (int i in shuffled)
             _staticShuffleQueue.Add(i);
     }
+
+    private void SaveTrack(TrackModel track)
+    {
+        try
+        {
+            using var db = new LiteDatabase(GetTrackDbPath());
+            var tracks = db.GetCollection<TrackModel>("tracks");
+        
+            tracks.EnsureIndex(x => x.Path);
+        
+            var existing = tracks.FindOne(t => t.Path == track.Path);
+
+            if (existing != null)
+            {
+                track.Id = existing.Id;
+                tracks.Update(track);
+                Console.WriteLine($"✓ Updated track: {track.Title}");
+            }
+            else
+            {
+                track.Id = ObjectId.NewObjectId();
+                tracks.Insert(track);
+                Console.WriteLine($"✓ Inserted track: {track.Title}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error saving track: {ex.Message}");
+        }
+    }
+    private List<TrackModel> LoadAllTracks()
+    {
+        try
+        {
+            using var db = new LiteDatabase(GetTrackDbPath());
+            var tracks = db.GetCollection<TrackModel>("tracks");
+            var allTracks = tracks.FindAll().ToList();
+            Console.WriteLine($"✓ Loaded {allTracks.Count} tracks from database");
+            return allTracks;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error loading tracks: {ex.Message}");
+            return new List<TrackModel>();
+        }
+    }
+
 
     void UpdateQueuePreview()
     {

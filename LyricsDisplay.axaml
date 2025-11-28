@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MusicPlayerApp.LyricsDisplay"
+             Background="#000000">
+  
+    <Border CornerRadius="12"
+            Background="#0A0A0A"
+            Padding="24">
+    
+        <Grid RowDefinitions="Auto,*">
+      
+            <StackPanel Name="HeaderPanel"
+                        Grid.Row="0" 
+                        Spacing="8"
+                        Margin="0,0,0,24"
+                        IsVisible="True">
+                <TextBlock Text="Lyrics"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="#FFFFFF"
+                           HorizontalAlignment="Center"/>
+        
+                <Button Name="LoadLyricsButton"
+                        Content="Load Lyrics File (.lrc)"
+                        Background="#1DB954"
+                        Foreground="#000000"
+                        Padding="16,8"
+                        CornerRadius="20"
+                        HorizontalAlignment="Center"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Click="LoadLyricsButton_Click"/>
+            </StackPanel>
+
+            <ScrollViewer Name="LyricsScrollViewer"
+                          Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          AllowAutoHide="True">
+        
+                <StackPanel Name="LyricsPanel"
+                            Margin="0,60,0,60">
+        
+                    <TextBlock Text="No lyrics loaded"
+                               FontSize="16"
+                               Foreground="#6A6A6A"
+                               HorizontalAlignment="Center"
+                               Margin="0,40"/>
+                </StackPanel>
+        
+            </ScrollViewer>
+      
+        </Grid>
+    
+    </Border>
+  
+</UserControl>

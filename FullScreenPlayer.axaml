@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MusicPlayerApp"
         x:Class="MusicPlayerApp.FullscreenPlayer"
         WindowState="FullScreen"
         CanResize="False">
@@ -52,54 +53,106 @@
         </Canvas>
 
         <Grid.RowDefinitions>
-    <RowDefinition Height="*"/>
-    <RowDefinition Height="Auto"/>
-</Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-<StackPanel HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="28">
+        <Grid Name="FS_MainContent"
+              Grid.Row="0" 
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
 
-   <Border Width="620"
-        Height="620"
-        CornerRadius="22"
-        ClipToBounds="True"
-        Background="#181818">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-    <Border.Effect>
-        <DropShadowEffect BlurRadius="38"
-                          Opacity="0.40"
-                          Color="#000000"
-                          OffsetX="0"
-                          OffsetY="0"/>
-    </Border.Effect>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="620"/>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="500"/>
+            </Grid.ColumnDefinitions>
 
-    <Image Name="FS_AlbumArt"
-           Stretch="UniformToFill"/>
-</Border>
+            <Border Grid.Row="0"
+                    Grid.Column="0"
+                    Width="620"
+                    Height="620"
+                    CornerRadius="22"
+                    ClipToBounds="True"
+                    Background="#181818">
 
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="38"
+                                      Opacity="0.40"
+                                      Color="#000000"
+                                      OffsetX="0"
+                                      OffsetY="0"/>
+                </Border.Effect>
 
-    <StackPanel Spacing="8" HorizontalAlignment="Center">
-        <TextBlock Name="FS_Title"
-                   FontSize="40"
-                   FontWeight="SemiBold"
-                   TextAlignment="Center"
-                   Foreground="#1ed660"/>
+                <Image Name="FS_AlbumArt"
+                       Stretch="UniformToFill"/>
+            </Border>
 
+            <StackPanel Grid.Row="1"
+                        Grid.Column="0"
+                        Margin="0,24,0,0"
+                        Spacing="6" 
+                        HorizontalAlignment="Center">
+                
+                <TextBlock Name="FS_Title"
+                           FontSize="32"
+                           FontWeight="Bold"
+                           TextAlignment="Center"
+                           Foreground="#1ed760"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="620"/>
 
                 <TextBlock Name="FS_Artist"
-                           FontSize="24"
-                           Foreground="#ffffffff"
-                           TextAlignment="Center"/>
+                           FontSize="20"
+                           Foreground="#B3B3B3"
+                           TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="620"/>
 
                 <TextBlock Name="FS_AlbumName"
-                           FontSize="18"
-                           Foreground="#ffffffff"
-                           TextAlignment="Center"/>
+                           FontSize="16"
+                           Foreground="#B3B3B3"
+                           TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="620"/>
             </StackPanel>
 
-        </StackPanel>
+            <Border Name="FS_LyricsContainer"
+                    Grid.Row="0"
+                    Grid.RowSpan="2"
+                    Grid.Column="2"
+                    Width="500"
+                    Height="620"
+                    CornerRadius="22"
+                    Background="Transparent"
+                    Padding="20"
+                    IsVisible="False">
+                
+                <ScrollViewer Name="FS_LyricsScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              AllowAutoHide="True">
+                    
+                    <StackPanel Name="FS_LyricsPanel"
+                                Margin="0,180,0,180">
+                        
+                        <TextBlock Text="♪"
+                                   FontSize="40"
+                                   Foreground="#6A6A6A"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,40"/>
+                    </StackPanel>
+                    
+                </ScrollViewer>
+            </Border>
+        </Grid>
 
+        <!-- Playback Controls -->
         <StackPanel Grid.Row="1"
                     Spacing="20"
                     Margin="40,0,40,40">
@@ -113,23 +166,23 @@
                            Margin="0,0,8,0"/>
 
                 <Border Grid.Column="1"
-        x:Name="SeekBarContainer"
-        Height="8"
-        Background="#4A4A4A"
-        CornerRadius="4"
-        VerticalAlignment="Center"
-        PointerPressed="SeekBarPressed"
-        PointerMoved="SeekBarMoved"
-        PointerReleased="SeekBarReleased"
-        PointerCaptureLost="SeekBarCaptureLost">
+                        x:Name="SeekBarContainer"
+                        Height="8"
+                        Background="#4A4A4A"
+                        CornerRadius="4"
+                        VerticalAlignment="Center"
+                        PointerPressed="SeekBarPressed"
+                        PointerMoved="SeekBarMoved"
+                        PointerReleased="SeekBarReleased"
+                        PointerCaptureLost="SeekBarCaptureLost">
 
-    <Border x:Name="SeekBarFill"
-            Height="8"
-            Background="#1DB954"
-            CornerRadius="4"
-            HorizontalAlignment="Left"
-            Width="0"/>
-</Border>
+                    <Border x:Name="SeekBarFill"
+                            Height="8"
+                            Background="#1DB954"
+                            CornerRadius="4"
+                            HorizontalAlignment="Left"
+                            Width="0"/>
+                </Border>
 
                 <TextBlock Name="FS_Total"
                            Grid.Column="2"

@@ -8,10 +8,19 @@
              Background="#000000"
              DragDrop.AllowDrop="True"
              HorizontalAlignment="Stretch"
-             VerticalAlignment="Stretch">
+             VerticalAlignment="Stretch"
+             MinWidth="900"
+             MinHeight="600">
 
   <UserControl.Resources>
     <conv:BooleanToBrushConverter x:Key="FavBrush" />
+    <DataTemplate x:Key="WaveAnimationTemplate">
+      <StackPanel Orientation="Horizontal" Spacing="2">
+        <Border Width="3" Height="8" Background="#1DB954" CornerRadius="2"/>
+        <Border Width="3" Height="12" Background="#1DB954" CornerRadius="2"/>
+        <Border Width="3" Height="6" Background="#1DB954" CornerRadius="2"/>
+      </StackPanel>
+    </DataTemplate>
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -126,12 +135,20 @@
               Padding="0,6"
               CornerRadius="6">
         <Grid ColumnDefinitions="40,40,*,220,130,60">
-          <TextBlock Grid.Column="0"
-                     Text="{Binding Index}"
-                     Foreground="#9E9E9E"
-                     FontSize="14"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Center"/>
+          <Grid Grid.Column="0">
+            <TextBlock Name="TrackIndexText"
+                       Text="{Binding Index}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#9E9E9E"
+                       FontSize="14"/>
+
+            <ContentControl Name="WaveIcon"
+                            Content="{StaticResource WaveAnimationTemplate}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="False"/>
+          </Grid>
 
           <Border Grid.Column="1"
                   Width="38"
@@ -230,9 +247,9 @@
   <Grid>
     <Border Name="BackgroundGradient"/>
 
-    <Grid RowDefinitions="*,100" ColumnDefinitions="280,*">
+    <Grid Name="MainContentGrid" RowDefinitions="*,Auto" ColumnDefinitions="Auto,*,380">
 
-      <Border Grid.Column="0" Grid.RowSpan="2" Background="#000000" Padding="8">
+      <Border Grid.Column="0" Grid.RowSpan="2" Background="#000000" Padding="8" MinWidth="240" MaxWidth="320">
         <Border Background="#0A0A0A" CornerRadius="12" Padding="0">
           <ScrollViewer VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled"
@@ -321,21 +338,6 @@
                                VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-
-                <!-- <Button Name="StatsButton"
-                        Background="#282828"
-                        CornerRadius="8"
-                        Padding="10">
-                  <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Border Background="#1E88E5" Width="32" Height="32" CornerRadius="6" Padding="6">
-                      <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Text="Your Stats"
-                               FontSize="14"
-                               FontWeight="Medium"
-                               VerticalAlignment="Center"/>
-                  </StackPanel>
-                </Button> -->
               </StackPanel>
 
               <StackPanel Spacing="10">
@@ -385,7 +387,6 @@
                 <Border Background="#0F0F0F"
                         CornerRadius="10"
                         Padding="6"
-                        MaxHeight="450"
                         BorderBrush="#1F1F1F"
                         BorderThickness="1">
                   <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -410,9 +411,10 @@
           <TextBox
             Grid.Row="0"
             Name="SearchBox"
+            HorizontalAlignment="Center"
             Watermark="Search tracks..."
-            Width="460"
             Height="46"
+            Width="350"
             CornerRadius="12"
             Background="#111111"
             BorderBrush="#2A2A2A"
@@ -506,6 +508,7 @@
               <ListBox.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="Play" Name="PlayContextMenuItem"/>
+                  <MenuItem Header="📝 Upload Lyrics" Name="UploadLyricsMenuItem"/>
                   <MenuItem Header="Remove" Name="RemoveContextMenuItem"/>
                   <MenuItem Header="Add to Playlist" Name="AddToPlaylistMenuItem"/>
                   <MenuItem Header="Open Containing Folder" Name="OpenFolderContextMenuItem"/>
@@ -516,8 +519,18 @@
         </Grid>
       </Grid>
 
+      <Border Name="LyricsPanelContainer"
+              Grid.Column="2"
+              Grid.Row="0"
+              Background="#0A0A0A"
+              Margin="0,16,16,0"
+              CornerRadius="12"
+              IsVisible="True">
+        <local:LyricsDisplay Name="LyricsDisplay"/>
+      </Border>
+
       <Border Grid.Column="0"
-              Grid.ColumnSpan="2"
+              Grid.ColumnSpan="3"
               Grid.Row="1"
               Background="#000000"
               Padding="20,12">
@@ -579,6 +592,21 @@
                     Height="18"/>
             </Button>
             
+            <Button Name="LyricsToggleButton"
+                    Width="40"
+                    Height="36"
+                    Background="#282828"
+                    CornerRadius="4"
+                    Margin="8,0"
+                    ToolTip.Tip="Toggle Lyrics"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center">
+              <TextBlock Text="♪"
+                         FontSize="20"
+                         Foreground="#1DB954"
+                         FontWeight="Bold"/>
+            </Button>
+
             <ToggleButton Name="ShuffleButton"
                           Classes="icon"
                           Width="38"

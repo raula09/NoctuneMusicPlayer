@@ -1,4 +1,5 @@
 using Avalonia.Media.Imaging;
+using LiteDB;
 using System;
 using System.IO;
 using System.ComponentModel;
@@ -8,6 +9,7 @@ namespace MusicPlayerApp.Models;
 
 public class Track : INotifyPropertyChanged
 {
+    private ObjectId _id;
     private string _path;
     private string? _title;
     private string? _artist;
@@ -18,11 +20,21 @@ public class Track : INotifyPropertyChanged
     private bool _isFavorite;
     private int _index;
     private bool _metadataLoaded;
+    private string? _lyricsData;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public Track()
+    {
+        _id = ObjectId.NewObjectId();
+        _path = string.Empty;
+        _dateAdded = DateTime.Now;
+        _metadataLoaded = false;
+    }
+
     public Track(string path)
     {
+        _id = ObjectId.NewObjectId();
         _path = path;
         _dateAdded = DateTime.Now;
         _metadataLoaded = false;
@@ -41,6 +53,13 @@ public class Track : INotifyPropertyChanged
         return true;
     }
 
+    [BsonId]
+    public ObjectId Id
+    {
+        get => _id;
+        set => SetProperty(ref _id, value);
+    }
+
     public string Path
     {
         get => _path;
@@ -54,7 +73,7 @@ public class Track : INotifyPropertyChanged
             EnsureMetadataLoaded();
             return _title ?? System.IO.Path.GetFileNameWithoutExtension(_path);
         }
-        private set => SetProperty(ref _title, value);
+        set => SetProperty(ref _title, value);
     }
 
     public string Artist
@@ -64,7 +83,7 @@ public class Track : INotifyPropertyChanged
             EnsureMetadataLoaded();
             return _artist ?? "Unknown Artist";
         }
-        private set => SetProperty(ref _artist, value);
+        set => SetProperty(ref _artist, value);
     }
 
     public string Album
@@ -74,7 +93,7 @@ public class Track : INotifyPropertyChanged
             EnsureMetadataLoaded();
             return _album ?? "Unknown Album";
         }
-        private set => SetProperty(ref _album, value);
+        set => SetProperty(ref _album, value);
     }
 
     public TimeSpan Duration
@@ -84,9 +103,10 @@ public class Track : INotifyPropertyChanged
             EnsureMetadataLoaded();
             return _duration;
         }
-        private set => SetProperty(ref _duration, value);
+        set => SetProperty(ref _duration, value);
     }
 
+    [BsonIgnore]
     public Bitmap? Art
     {
         get
@@ -94,7 +114,7 @@ public class Track : INotifyPropertyChanged
             EnsureMetadataLoaded();
             return _art;
         }
-        private set => SetProperty(ref _art, value);
+        set => SetProperty(ref _art, value);
     }
 
     public DateTime DateAdded
@@ -109,13 +129,26 @@ public class Track : INotifyPropertyChanged
         set => SetProperty(ref _isFavorite, value);
     }
 
+    [BsonIgnore]
     public int Index
     {
         get => _index;
         set => SetProperty(ref _index, value);
     }
 
+    public string? LyricsData
+    {
+        get => _lyricsData;
+        set => SetProperty(ref _lyricsData, value);
+    }
+
+    [BsonIgnore]
+    public bool HasLyrics => !string.IsNullOrEmpty(_lyricsData);
+
+    [BsonIgnore]
     public string DateAddedString => _dateAdded.ToString("yyyy-MM-dd");
+    
+    [BsonIgnore]
     public string DurationString => _duration.ToString(@"m\:ss");
 
     private void EnsureMetadataLoaded()
@@ -130,7 +163,6 @@ public class Track : INotifyPropertyChanged
             _album = file.Tag.Album;
             _duration = file.Properties.Duration;
 
-            // Load album art (this is the expensive part)
             if (file.Tag.Pictures.Length > 0)
             {
                 var pic = file.Tag.Pictures[0];
@@ -143,7 +175,6 @@ public class Track : INotifyPropertyChanged
         _metadataLoaded = true;
     }
 
-    // Force metadata load for when you're actually playing
     public void LoadMetadata()
     {
         EnsureMetadataLoaded();

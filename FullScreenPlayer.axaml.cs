@@ -4,8 +4,14 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.Controls.Shapes;
+using Avalonia.VisualTree;
 using System;
-
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
+using MusicPlayerApp.Models;
+using Avalonia.VisualTree;
 namespace MusicPlayerApp;
 
 public partial class FullscreenPlayer : Window
@@ -16,14 +22,18 @@ public partial class FullscreenPlayer : Window
     public event EventHandler<long>? SeekRequested;
     public event EventHandler<int>? VolumeRequested;
 
+ 
+    
     Image? AlbumArt;
     TextBlock? AlbumNameBlock;
     TextBlock? TitleBlock;
     TextBlock? ArtistBlock;
-    TextBlock? YearBlock;
+ 
 
-
-
+    private List<LyricsLine> _fsLyrics = new List<LyricsLine>();
+    private int _fsCurrentLineIndex = -1;
+    private int _fsDotAnimationFrame = 0;
+    private DispatcherTimer? _fsDotTimer;
 
     DispatcherTimer? bgTimer;
     Random rand = new Random();
@@ -48,9 +58,12 @@ public partial class FullscreenPlayer : Window
         AlbumNameBlock = this.FindControl<TextBlock>("FS_AlbumName");
         TitleBlock = this.FindControl<TextBlock>("FS_Title");
         ArtistBlock = this.FindControl<TextBlock>("FS_Artist");
-        YearBlock = this.FindControl<TextBlock>("FS_Year");
         FS_Current = this.FindControl<TextBlock>("FS_Current");
         FS_Total = this.FindControl<TextBlock>("FS_Total");
+        FS_LyricsScrollViewer = this.FindControl<ScrollViewer>("FS_LyricsScrollViewer");
+        FS_LyricsPanel = this.FindControl<StackPanel>("FS_LyricsPanel");
+        FS_LyricsContainer = this.FindControl<Border>("FS_LyricsContainer");
+        FS_MainContent = this.FindControl<Grid>("FS_MainContent");
 
         SeekBarContainer = this.FindControl<Border>("SeekBarContainer");
         SeekBarFill = this.FindControl<Border>("SeekBarFill");
@@ -67,16 +80,260 @@ public partial class FullscreenPlayer : Window
         if (AlbumNameBlock != null) AlbumNameBlock.Text = album;
         if (TitleBlock != null) TitleBlock.Text = title;
         if (ArtistBlock != null) ArtistBlock.Text = artist;
-        if (YearBlock != null) YearBlock.Text = year;
 
         InitBackgroundAnimation();
+        InitDotAnimation();
         UpdateBackgroundFromAlbum(art);
 
         KeyDown += FullscreenPlayer_KeyDown;
         Focusable = true;
         Focus();
     }
+    private void InitDotAnimation()
+    {
+        _fsDotTimer = new DispatcherTimer 
+        { 
+            Interval = TimeSpan.FromMilliseconds(500) 
+        };
+        _fsDotTimer.Tick += (_, _) =>
+        {
+            _fsDotAnimationFrame = (_fsDotAnimationFrame + 1) % 4;
+            UpdateFSLyricsDisplay();
+        };
+        _fsDotTimer.Start();
+    }
 
+    public void LoadLyrics(List<LyricsLine> lyrics)
+    {
+        _fsLyrics = lyrics;
+        _fsCurrentLineIndex = -1;
+    
+        if (_fsLyrics.Count > 0)
+        {
+            if (FS_LyricsContainer != null)
+            {
+                FS_LyricsContainer.IsVisible = true;
+            }
+        
+            BuildFSLyricsUI();
+        }
+        else
+        {
+            if (FS_LyricsContainer != null)
+            {
+                FS_LyricsContainer.IsVisible = false;
+            }
+        }
+    }
+
+    private void BuildFSLyricsUI()
+    {
+        if (FS_LyricsPanel == null) return;
+
+        FS_LyricsPanel.Children.Clear();
+
+        if (_fsLyrics.Count == 0)
+        {
+            FS_LyricsPanel.Children.Add(new TextBlock
+            {
+                Text = "♪",
+                FontSize = 40,
+                Foreground = new SolidColorBrush(Color.Parse("#6A6A6A")),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                Margin = new Avalonia.Thickness(0, 40)
+            });
+            return;
+        }
+
+        for (int i = 0; i < _fsLyrics.Count; i++)
+        {
+            var line = _fsLyrics[i];
+            
+            if (line.IsInstrumental)
+            {
+                var dotsPanel = new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    Spacing = 8,
+                    Margin = new Avalonia.Thickness(16, 12),
+                    Tag = i
+                };
+
+                for (int d = 0; d < 3; d++)
+                {
+                    var dot = new Border
+                    {
+                        Width = 10,
+                        Height = 10,
+                        CornerRadius = new Avalonia.CornerRadius(5),
+                        Background = new SolidColorBrush(Color.Parse("#6A6A6A")),
+                        Tag = $"dot_{d}"
+                    };
+                    dotsPanel.Children.Add(dot);
+                }
+
+                FS_LyricsPanel.Children.Add(dotsPanel);
+            }
+            else
+            {
+                var textBlock = new TextBlock
+                {
+                    Text = line.Text,
+                    FontSize = 26,
+                    FontWeight = FontWeight.SemiBold,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(16, 12),
+                    Tag = i,
+                    Foreground = new SolidColorBrush(Color.Parse("#6A6A6A"))
+                };
+
+                FS_LyricsPanel.Children.Add(textBlock);
+            }
+        }
+    }
+
+    public void UpdateLyricsPosition(TimeSpan currentPosition)
+    {
+        if (_fsLyrics.Count == 0) return;
+
+        int newLineIndex = -1;
+        
+        for (int i = 0; i < _fsLyrics.Count; i++)
+        {
+            var line = _fsLyrics[i];
+            
+            if (currentPosition >= line.StartTime && currentPosition < line.EndTime)
+            {
+                newLineIndex = i;
+                break;
+            }
+        }
+
+        if (newLineIndex != _fsCurrentLineIndex)
+        {
+            _fsCurrentLineIndex = newLineIndex;
+            UpdateFSLyricsDisplay();
+        }
+    }
+
+    private void UpdateFSLyricsDisplay()
+    {
+        if (FS_LyricsPanel == null || _fsLyrics.Count == 0) return;
+
+        Control? activeControl = null;
+
+        foreach (var child in FS_LyricsPanel.Children)
+        {
+            if (child is TextBlock textBlock && textBlock.Tag is int lineIndex)
+            {
+                if (lineIndex < 0 || lineIndex >= _fsLyrics.Count)
+                    continue;
+
+                bool isActive = (lineIndex == _fsCurrentLineIndex);
+
+                if (isActive)
+                {
+                    textBlock.Foreground = new SolidColorBrush(Color.Parse("#FFFFFF"));
+                    textBlock.FontSize = 30;
+                    textBlock.FontWeight = FontWeight.Bold;
+                    textBlock.Opacity = 1.0;
+                    activeControl = textBlock;
+                }
+                else if (lineIndex < _fsCurrentLineIndex)
+                {
+                    textBlock.Foreground = new SolidColorBrush(Color.Parse("#4A4A4A"));
+                    textBlock.FontSize = 26;
+                    textBlock.FontWeight = FontWeight.SemiBold;
+                    textBlock.Opacity = 0.6;
+                }
+                else
+                {
+                    textBlock.Foreground = new SolidColorBrush(Color.Parse("#6A6A6A"));
+                    textBlock.FontSize = 26;
+                    textBlock.FontWeight = FontWeight.SemiBold;
+                    textBlock.Opacity = 0.5;
+                }
+            }
+            else if (child is StackPanel dotsPanel && dotsPanel.Tag is int dotLineIndex)
+            {
+                if (dotLineIndex < 0 || dotLineIndex >= _fsLyrics.Count)
+                    continue;
+
+                bool isActive = (dotLineIndex == _fsCurrentLineIndex);
+
+                if (isActive)
+                {
+                    activeControl = dotsPanel;
+                    
+                    var dots = dotsPanel.Children.OfType<Border>().ToList();
+                    for (int d = 0; d < dots.Count; d++)
+                    {
+                        var fillProgress = (_fsDotAnimationFrame > d) ? 1.0 : 0.5;
+                        dots[d].Background = new SolidColorBrush(
+                            Color.Parse(fillProgress > 0.9 ? "#FFFFFF" : "#6A6A6A"));
+                        dots[d].Opacity = fillProgress;
+                    }
+                }
+                else
+                {
+                    var dots = dotsPanel.Children.OfType<Border>().ToList();
+                    foreach (var dot in dots)
+                    {
+                        dot.Background = new SolidColorBrush(Color.Parse("#4A4A4A"));
+                        dot.Opacity = 0.5;
+                    }
+                }
+            }
+        }
+
+        if (activeControl != null)
+        {
+            ScrollFSLyricsToControl(activeControl);
+        }
+    }
+
+    private void ScrollFSLyricsToControl(Control control)
+    {
+        if (FS_LyricsScrollViewer == null || FS_LyricsPanel == null) return;
+
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await Task.Delay(10);
+            
+                FS_LyricsScrollViewer.UpdateLayout();
+                control.UpdateLayout();
+
+                var bounds = control.Bounds;
+                var scrollBounds = FS_LyricsScrollViewer.Bounds;
+            
+                if (scrollBounds.Height > 0)
+                {
+                    var controlPosition = control.TranslatePoint(new Avalonia.Point(0, 0), FS_LyricsPanel);
+                
+                    if (controlPosition != null)
+                    {
+                        var targetOffset = controlPosition.Value.Y - (scrollBounds.Height / 2) + (bounds.Height / 2);
+                    
+                        var extent = FS_LyricsScrollViewer.Extent.Height;
+                        var viewport = FS_LyricsScrollViewer.Viewport.Height;
+                        var maxOffset = extent - viewport;
+                    
+                        targetOffset = Math.Clamp(targetOffset, 0, Math.Max(0.0, maxOffset));
+                    
+                        FS_LyricsScrollViewer.Offset = new Avalonia.Vector(0, targetOffset);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FS Scroll error: {ex.Message}");
+            }
+        });
+    }
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -189,6 +446,8 @@ public partial class FullscreenPlayer : Window
 
         if (!_fsSeeking && FS_Current != null) FS_Current.Text = cur;
         if (FS_Total != null) FS_Total.Text = tot;
+        
+        UpdateLyricsPosition(TimeSpan.FromMilliseconds(pos));
     }
 
     public void UpdateTrack(Bitmap? art, string title, string artist, string album, string year)
@@ -197,7 +456,6 @@ public partial class FullscreenPlayer : Window
         if (AlbumNameBlock != null) AlbumNameBlock.Text = album;
         if (TitleBlock != null) TitleBlock.Text = title;
         if (ArtistBlock != null) ArtistBlock.Text = artist;
-        if (YearBlock != null) YearBlock.Text = year;
 
         UpdateBackgroundFromAlbum(art);
     }

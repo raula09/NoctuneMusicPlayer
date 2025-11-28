@@ -21,6 +21,12 @@ public class PipeWireCapture
 
     public void Start()
     {
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine("PipeWire capture is only available on Linux");
+            return;
+        }
+
         if (_process != null)
             return;
 
@@ -46,10 +52,17 @@ public class PipeWireCapture
         psi.ArgumentList.Add(_sourceName);
         psi.ArgumentList.Add("-");
 
-        _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        _process.Start();
-
-        _readTask = Task.Run(() => ReadLoop(_cts.Token));
+        try
+        {
+            _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            _process.Start();
+            _readTask = Task.Run(() => ReadLoop(_cts.Token));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start PipeWire capture: {ex.Message}");
+            _process = null;
+        }
     }
 
     async Task ReadLoop(CancellationToken token)
