@@ -14,6 +14,8 @@
 
   <UserControl.Resources>
     <conv:BooleanToBrushConverter x:Key="FavBrush" />
+    <conv:LikeColorConverter x:Key="LikeColorConverter" />
+    
     <DataTemplate x:Key="WaveAnimationTemplate">
       <StackPanel Orientation="Horizontal" Spacing="2">
         <Border Width="3" Height="8" Background="#1DB954" CornerRadius="2"/>
@@ -130,78 +132,109 @@
   </UserControl.Styles>
 
   <UserControl.DataTemplates>
-    <DataTemplate DataType="models:Track">
-      <Border Background="Transparent"
-              Padding="0,6"
-              CornerRadius="6">
-        <Grid ColumnDefinitions="40,40,*,220,130,60">
-          <Grid Grid.Column="0">
-            <TextBlock Name="TrackIndexText"
-                       Text="{Binding Index}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Foreground="#9E9E9E"
-                       FontSize="14"/>
+   
+<DataTemplate DataType="models:Track">
+  <Border Background="Transparent"
+          Padding="0,6"
+          CornerRadius="6">
+    <Grid ColumnDefinitions="40,40,*,220,130,60,40">
+      <Grid Grid.Column="0">
+        <TextBlock Name="TrackIndexText"
+                   Text="{Binding Index}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="#6A6A6A"
+                   FontSize="13"/>
 
-            <ContentControl Name="WaveIcon"
-                            Content="{StaticResource WaveAnimationTemplate}"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            IsVisible="False"/>
-          </Grid>
+        <ContentControl Name="WaveIcon"
+                        Content="{StaticResource WaveAnimationTemplate}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsVisible="False"/>
+      </Grid>
 
-          <Border Grid.Column="1"
-                  Width="38"
-                  Height="38"
-                  CornerRadius="4"
-                  ClipToBounds="True"
-                  Background="#181818">
-            <Image Source="{Binding Art}" Stretch="UniformToFill"/>
-          </Border>
-
-          <StackPanel Grid.Column="2"
-                      Orientation="Vertical"
-                      Spacing="2"
-                      VerticalAlignment="Center"
-                      Margin="12,0,0,0">
-            <TextBlock Text="{Binding Title}"
-                       FontSize="14"
-                       Foreground="White"
-                       TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{Binding Artist}"
-                       FontSize="12"
-                       Foreground="#B3B3B3"
-                       TextTrimming="CharacterEllipsis"/>
-          </StackPanel>
-
-          <TextBlock Grid.Column="3"
-                     Text="{Binding Album}"
-                     Foreground="#B3B3B3"
-                     FontSize="13"
-                     VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis"/>
-
-          <TextBlock Grid.Column="4"
-                     Text="{Binding DateAddedString}"
-                     Foreground="#A7A7A7"
-                     FontSize="13"
-                     VerticalAlignment="Center"/>
-
-          <TextBlock Grid.Column="5"
-                     Text="{Binding DurationString}"
-                     Foreground="#B3B3B3"
-                     FontSize="13"
-                     HorizontalAlignment="Right"
-                     VerticalAlignment="Center"/>
-        </Grid>
-
-        <Border.Styles>
-          <Style Selector="Border:pointerover">
-            <Setter Property="Background" Value="#1A1A1A"/>
-          </Style>
-        </Border.Styles>
+      <Border Grid.Column="1"
+              Width="40"
+              Height="40"
+              CornerRadius="6"
+              ClipToBounds="True"
+              Background="#181818">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="8" Opacity="0.5" OffsetX="0" OffsetY="2"/>
+        </Border.Effect>
+        <Image Source="{Binding Art}" Stretch="UniformToFill"/>
       </Border>
-    </DataTemplate>
+
+      <StackPanel Grid.Column="2"
+                  Orientation="Vertical"
+                  Spacing="3"
+                  VerticalAlignment="Center"
+                  Margin="14,0,0,0">
+        <TextBlock Text="{Binding Title}"
+                   FontSize="14"
+                   FontWeight="Medium"
+                   Foreground="White"
+                   TextTrimming="CharacterEllipsis"/>
+        <TextBlock Text="{Binding Artist}"
+                   FontSize="12"
+                   Foreground="#9E9E9E"
+                   TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+
+      <TextBlock Grid.Column="3"
+                 Text="{Binding Album}"
+                 Foreground="#9E9E9E"
+                 FontSize="13"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"/>
+
+      <TextBlock Grid.Column="4"
+                 Text="{Binding DateAddedString}"
+                 Foreground="#8A8A8A"
+                 FontSize="12"
+                 VerticalAlignment="Center"/>
+
+      <TextBlock Grid.Column="5"
+                 Text="{Binding DurationString}"
+                 Foreground="#9E9E9E"
+                 FontSize="13"
+                 HorizontalAlignment="Right"
+                 VerticalAlignment="Center"/>
+      
+      <Button Grid.Column="6"
+              Name="LikeButton"
+              Width="32"
+              Height="32"
+              Background="Transparent"
+              BorderThickness="0"
+              CornerRadius="16"
+              Padding="0"
+              VerticalAlignment="Center"
+              HorizontalAlignment="Center"
+              Cursor="Hand"
+              Click="OnTrackLikeClick">
+        <Button.Styles>
+          <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#2A2A2A"/>
+          </Style>
+        </Button.Styles>
+        
+        <Path Name="HeartPath"
+              Fill="{Binding IsLiked, Converter={StaticResource LikeColorConverter}}"
+              Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              Stretch="Uniform"
+              Width="18"
+              Height="18"/>
+      </Button>
+    </Grid>
+
+    <Border.Styles>
+      <Style Selector="Border:pointerover">
+        <Setter Property="Background" Value="#1A1A1A"/>
+      </Style>
+    </Border.Styles>
+  </Border>
+</DataTemplate>
 
     <DataTemplate DataType="local:QueueEntry">
       <Border Padding="4,3">
@@ -336,6 +369,27 @@
                                FontSize="14"
                                FontWeight="Medium"
                                VerticalAlignment="Center"/>
+                   
+                  </StackPanel>
+                </Button>
+                <Button Name="LikedSongsButton">
+                  <StackPanel Orientation="Horizontal" Spacing="14">
+                    <Border Background="#1DB954" Width="34" Height="34" CornerRadius="8" Padding="7">
+                      <Path Fill="#ffffffff"
+                            Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                            Stretch="Uniform"
+                            Width="20" 
+                            Height="20"/>
+                    </Border>
+                    <StackPanel Orientation="Vertical" Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="Liked Songs"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"/>
+                      <TextBlock Name="LikedSongsCount"
+                                 Text="0 songs"
+                                 FontSize="11"
+                                 Foreground="#9E9E9E"/>
+                    </StackPanel>
                   </StackPanel>
                 </Button>
               </StackPanel>

@@ -17,6 +17,7 @@ using MusicPlayerApp.Models;
 using MusicPlayerApp.Services;
 using MusicPlayerApp.Views;
 using System;
+using MusicPlayerApp.Services;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -72,12 +73,15 @@ public partial class MainWindow : UserControl
     double _seekMax = 1;
     bool _seeking = false;
 
+ 
+    
     FullscreenPlayer? _fullscreen;
 
     PipeWireCapture? _capture;
     VisualizerService _visualizer = new();
     private bool _isTogglingPlay = false;
     private bool _isPaused = false;
+    private bool _isLoadingLikedSongs = false;
 
     AppSettings _settings = new();
     LibVLC _libVLC;
@@ -126,6 +130,16 @@ public partial class MainWindow : UserControl
         _listeningSessions = StatsService.LoadListeningSessions() ?? new List<ListeningSession>();
         _accountCreated = StatsService.LoadAccountCreatedDate();
        
+        LikedSongsButton = this.FindControl<Button>("LikedSongsButton");
+        LikedSongsCount = this.FindControl<TextBlock>("LikedSongsCount");
+
+        if (LikedSongsButton != null)
+        {
+            LikedSongsButton.Click += OnLikedSongsClick;
+        }
+
+        UpdateLikedSongsCount();
+        
         if (!string.IsNullOrEmpty(token))
         {
             _userEmail = GetEmailFromToken(token);
@@ -238,44 +252,27 @@ public partial class MainWindow : UserControl
     
         if (_lyricsDisplay != null)
         {
+            
             _lyricsDisplay.LyricsLoaded += (sender, lyricsContent) =>
             {
-                if (_currentTrack != null)
+                Console.WriteLine("✓ Lyrics loaded and saved to LyricsService");
+            };
+        
+            _lyricsDisplay.SeekRequested += (sender, seekTime) =>
+            {
+                if (_mp != null && _mp.Media != null && _mp.IsSeekable)
                 {
-                    _currentTrack.LyricsData = lyricsContent;
-                    SaveTrackLyrics(_currentTrack);
+                    long milliseconds = (long)seekTime.TotalMilliseconds;
+                    _mp.Time = milliseconds;
+                    Console.WriteLine($"Seeking to: {seekTime:mm\\:ss}");
                 }
             };
         }
     }
-    private void SaveTrackLyrics(TrackModel track)
-    {
-        SaveTrack(track);
-    }
 
+    
   
-    private void LoadTrackLyrics(TrackModel track)
-    {
-        try
-        {
-            using var db = new LiteDatabase(GetTrackDbPath());
-            var tracks = db.GetCollection<TrackModel>("tracks");
-        
-            tracks.EnsureIndex(x => x.Path);
-        
-            var existing = tracks.FindOne(t => t.Path == track.Path);
-            if (existing?.HasLyrics == true)
-            {
-                track.LyricsData = existing.LyricsData;
-                track.Id = existing.Id; 
-                Console.WriteLine($"✓ Loaded lyrics for: {track.Title}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✗ Error loading lyrics: {ex.Message}");
-        }
-    }
+    
 
     private string GetEmailFromToken(string token)
     {
@@ -289,6 +286,43 @@ public partial class MainWindow : UserControl
         catch
         {
             return "user@example.com";
+        }
+    }
+    
+    private void OnLikedSongsClick(object? sender, RoutedEventArgs e)
+    {
+        LoadLikedSongsPlaylist();
+    }
+
+    private void UpdateLikedSongsCount()
+    {
+        if (LikedSongsCount != null)
+        {
+            int count = LikesService.GetLikedTracksCount();
+            LikedSongsCount.Text = $"{count} song{(count != 1 ? "s" : "")}";
+        }
+    }
+
+    private void OnTrackLikeClick(object? sender, RoutedEventArgs e)
+    {
+        Console.WriteLine("\n=== LIKE BUTTON CLICKED ===");
+    
+        if (sender is Button button && button.DataContext is TrackModel track)
+        {
+            Console.WriteLine($"Track: {track.Title}");
+            Console.WriteLine($"Path: {track.Path}");
+            Console.WriteLine($"IsLiked BEFORE: {track.IsLiked}");
+        
+            track.ToggleLike();
+        
+            Console.WriteLine($"IsLiked AFTER: {track.IsLiked}");
+        
+            // ✅ Don't remove/insert - just trigger property change
+            // The binding will update automatically
+            UpdateLikedSongsCount();
+        
+            Console.WriteLine($"{(track.IsLiked ? "♥" : "♡")} {track.Title}");
+            Console.WriteLine("=== LIKE BUTTON DONE ===\n");
         }
     }
     private void OnLyricsToggleClick(object? sender, RoutedEventArgs e)
@@ -318,6 +352,7 @@ public partial class MainWindow : UserControl
             }
         }
     }
+    
     private async void OnPlaylistsButtonClick(object? sender, RoutedEventArgs e)
     {
         var playlistsWindow = new Window
@@ -371,7 +406,56 @@ public partial class MainWindow : UserControl
 
         await playlistsWindow.ShowDialog((Window)VisualRoot!);
     }
-
+   
+    
+    private void LoadLikedSongsPlaylist()
+    {
+        if (_isLoadingLikedSongs) 
+        {
+            Console.WriteLine("⚠️ Already loading liked songs, skipping...");
+            return;
+        }
+    
+        _isLoadingLikedSongs = true;
+    
+        try
+        {
+            var likedTrackPaths = LikesService.GetAllLikedTrackPaths();
+            var originalPlaylist = _playlist.ToList();
+        
+            _playlist.Clear();
+        
+            foreach (var path in likedTrackPaths)
+            {
+                var existingTrack = originalPlaylist.FirstOrDefault(t => t.Path == path);
+            
+                if (existingTrack != null)
+                {
+                    _playlist.Add(existingTrack);
+                }
+                else
+                {
+                    var newTrack = new TrackModel(path);
+                    newTrack.LoadMetadata();
+                    _playlist.Add(newTrack);
+                }
+            }
+        
+            RebuildView();
+        
+            if (_playlist.Count > 0)
+            {
+                _index = 0;
+                PlayIndex();
+            }
+        
+            Console.WriteLine($"✓ Loaded {_playlist.Count} liked songs");
+        }
+        finally
+        {
+            _isLoadingLikedSongs = false;
+        }
+    }
     private void QueueItem_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         var visual = e.Source as Visual;
@@ -411,36 +495,8 @@ public partial class MainWindow : UserControl
 
         MainForceCreateButton.Click += MainForceCreateButton_Click;
     }
-    private void PlayTrack(TrackModel track)
-    {
-        _currentTrack = track;
     
-        
-        if (_lyricsDisplay != null)
-        {
-            if (track.HasLyrics)
-            {
-                _lyricsDisplay.LoadLyricsFromString(track.LyricsData!);
-            }
-            else
-            {
-                _lyricsDisplay.ClearLyrics();
-            }
-        }
-    }
-    private void UpdateUI()
-    {
-        if (_mp
-            != null && _lyricsDisplay != null)
-        {
-            var pos = _mp.Time; 
-            if (pos > 0)
-            {
-                _lyricsDisplay.UpdatePosition(TimeSpan.FromMilliseconds(pos));
-            }
-
-        }
-    }
+   
     private async void UploadLyrics_Click(object? sender, RoutedEventArgs e)
     {
         if (PlaylistBox.SelectedItem is not TrackModel selectedTrack)
@@ -469,18 +525,19 @@ public partial class MainWindow : UserControl
             using var reader = new StreamReader(stream);
             string lyricsContent = await reader.ReadToEndAsync();
 
+            // ✅ This automatically saves to LyricsService via Track.LyricsData setter
             selectedTrack.LyricsData = lyricsContent;
-            SaveTrack(selectedTrack);
 
             Console.WriteLine($"✓ Uploaded lyrics for: {selectedTrack.Title}");
 
-            if (_currentTrack != null && _currentTrack.Path == selectedTrack.Path && _lyricsDisplay != null)
+            // ✅ Update display if this is the current track
+            if (_currentTrack != null && _currentTrack.Path == selectedTrack.Path)
             {
-                _lyricsDisplay.LoadLyricsFromString(lyricsContent);
+                _lyricsDisplay?.SetCurrentTrack(selectedTrack);
             }
         }
     }
-   
+
     private async void MainForceCreateButton_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(MainForceNameBox.Text))
@@ -582,7 +639,7 @@ public partial class MainWindow : UserControl
     }
 
     
-    private void PlayIndex()
+    void PlayIndex()
     {
         _mp.Stop();
 
@@ -601,25 +658,10 @@ public partial class MainWindow : UserControl
         t.LoadMetadata();
 
         _currentTrack = t;
-        LoadTrackLyrics(t);
     
-        if (_lyricsDisplay != null)
-        {
-            if (t.HasLyrics)
-            {
-                _lyricsDisplay.LoadLyricsFromString(t.LyricsData!);
-            }
-            else
-            {
-                _lyricsDisplay.ClearLyrics();
-            }
-        }
-  
-
-        _currentTrackStartTime = DateTime.Now;
-        _lastKnownPosition = 0;
-
-        TrackSongPlay(t);
+        // ✅ NEW: Set the current track in LyricsDisplay
+        // This automatically loads lyrics from LyricsService
+        _lyricsDisplay?.SetCurrentTrack(t);
 
         _currentTrackStartTime = DateTime.Now;
         _lastKnownPosition = 0;
@@ -667,6 +709,8 @@ public partial class MainWindow : UserControl
             _restoredLastPosition = true;
         }
     }
+
+
 
     void UpdateTrackListPlayingState()
     {
@@ -1617,14 +1661,14 @@ private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
             if (existing != null)
             {
                 track.Id = existing.Id;
+                // Don't include LyricsData in the track database
+                // Lyrics are stored separately in LyricsService
                 tracks.Update(track);
-                Console.WriteLine($"✓ Updated track: {track.Title}");
             }
             else
             {
                 track.Id = ObjectId.NewObjectId();
                 tracks.Insert(track);
-                Console.WriteLine($"✓ Inserted track: {track.Title}");
             }
         }
         catch (Exception ex)
@@ -1632,6 +1676,7 @@ private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
             Console.WriteLine($"✗ Error saving track: {ex.Message}");
         }
     }
+
     private List<TrackModel> LoadAllTracks()
     {
         try

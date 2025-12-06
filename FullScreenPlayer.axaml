@@ -8,26 +8,43 @@
     <Grid Name="BgLayer" ClipToBounds="True">
         <Canvas Name="AnimatedBackground" HorizontalAlignment="Center" VerticalAlignment="Center">
 
-            <Ellipse Name="BG1" Width="1200" Height="1200" Opacity="0.40"
+            <!-- Blob 1 - Largest, slower movement -->
+            <Ellipse Name="BG1" Width="1400" Height="1400" Opacity="0.65"
                      RenderTransformOrigin="0.5,0.5">
                 <Ellipse.RenderTransform>
                     <TransformGroup>
                         <TranslateTransform/>
-                        <ScaleTransform/>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
                         <RotateTransform/>
                     </TransformGroup>
                 </Ellipse.RenderTransform>
                 <Ellipse.Effect>
-                    <BlurEffect Radius="180"/>
+                    <BlurEffect Radius="220"/>
                 </Ellipse.Effect>
             </Ellipse>
 
-            <Ellipse Name="BG2" Width="1400" Height="1400" Opacity="0.35"
+            <!-- Blob 2 - Extra large, very slow -->
+            <Ellipse Name="BG2" Width="1600" Height="1600" Opacity="0.55"
                      RenderTransformOrigin="0.5,0.5">
                 <Ellipse.RenderTransform>
                     <TransformGroup>
                         <TranslateTransform/>
-                        <ScaleTransform/>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                        <RotateTransform/>
+                    </TransformGroup>
+                </Ellipse.RenderTransform>
+                <Ellipse.Effect>
+                    <BlurEffect Radius="240"/>
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <!-- Blob 3 - Medium-large, medium speed -->
+            <Ellipse Name="BG3" Width="1300" Height="1300" Opacity="0.70"
+                     RenderTransformOrigin="0.5,0.5">
+                <Ellipse.RenderTransform>
+                    <TransformGroup>
+                        <TranslateTransform/>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
                         <RotateTransform/>
                     </TransformGroup>
                 </Ellipse.RenderTransform>
@@ -36,17 +53,33 @@
                 </Ellipse.Effect>
             </Ellipse>
 
-            <Ellipse Name="BG3" Width="1100" Height="1100" Opacity="0.38"
+            <!-- Blob 4 - Medium, faster movement -->
+            <Ellipse Name="BG4" Width="1200" Height="1200" Opacity="0.60"
                      RenderTransformOrigin="0.5,0.5">
                 <Ellipse.RenderTransform>
                     <TransformGroup>
                         <TranslateTransform/>
-                        <ScaleTransform/>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
                         <RotateTransform/>
                     </TransformGroup>
                 </Ellipse.RenderTransform>
                 <Ellipse.Effect>
-                    <BlurEffect Radius="160"/>
+                    <BlurEffect Radius="190"/>
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <!-- Blob 5 - Smaller, accent layer -->
+            <Ellipse Name="BG5" Width="1100" Height="1100" Opacity="0.65"
+                     RenderTransformOrigin="0.5,0.5">
+                <Ellipse.RenderTransform>
+                    <TransformGroup>
+                        <TranslateTransform/>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                        <RotateTransform/>
+                    </TransformGroup>
+                </Ellipse.RenderTransform>
+                <Ellipse.Effect>
+                    <BlurEffect Radius="180"/>
                 </Ellipse.Effect>
             </Ellipse>
 
@@ -68,58 +101,62 @@
             </Grid.RowDefinitions>
 
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="620"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="40"/>
-                <ColumnDefinition Width="500"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Row="0"
-                    Grid.Column="0"
-                    Width="620"
-                    Height="620"
-                    CornerRadius="22"
-                    ClipToBounds="True"
-                    Background="#181818">
-
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="38"
-                                      Opacity="0.40"
-                                      Color="#000000"
-                                      OffsetX="0"
-                                      OffsetY="0"/>
-                </Border.Effect>
-
-                <Image Name="FS_AlbumArt"
-                       Stretch="UniformToFill"/>
-            </Border>
-
-            <StackPanel Grid.Row="1"
+            <StackPanel Grid.Row="0"
                         Grid.Column="0"
-                        Margin="0,24,0,0"
-                        Spacing="6" 
-                        HorizontalAlignment="Center">
-                
-                <TextBlock Name="FS_Title"
-                           FontSize="32"
-                           FontWeight="Bold"
-                           TextAlignment="Center"
-                           Foreground="#1ed760"
-                           TextTrimming="CharacterEllipsis"
-                           MaxWidth="620"/>
+                        Grid.RowSpan="2"
+                        Spacing="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
 
-                <TextBlock Name="FS_Artist"
-                           FontSize="20"
-                           Foreground="#B3B3B3"
-                           TextAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           MaxWidth="620"/>
+                <Border Width="620"
+                        Height="620"
+                        CornerRadius="22"
+                        ClipToBounds="True"
+                        Background="#181818">
 
-                <TextBlock Name="FS_AlbumName"
-                           FontSize="16"
-                           Foreground="#B3B3B3"
-                           TextAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           MaxWidth="620"/>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="38"
+                                          Opacity="0.40"
+                                          Color="#000000"
+                                          OffsetX="0"
+                                          OffsetY="0"/>
+                    </Border.Effect>
+
+                    <Image Name="FS_AlbumArt"
+                           Stretch="UniformToFill"/>
+                </Border>
+
+                <StackPanel Spacing="6" 
+                            HorizontalAlignment="Center">
+                    
+                    <TextBlock Name="FS_Title"
+                               FontSize="32"
+                               FontWeight="Bold"
+                               TextAlignment="Center"
+                               Foreground="#1ed760"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="620"/>
+
+                    <TextBlock Name="FS_Artist"
+                               FontSize="20"
+                               Foreground="#FFFFFF"
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="620"/>
+
+                    <TextBlock Name="FS_AlbumName"
+                               FontSize="16"
+                               Foreground="#FFFFFF"
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="620"/>
+                </StackPanel>
+
             </StackPanel>
 
             <Border Name="FS_LyricsContainer"
@@ -127,7 +164,7 @@
                     Grid.RowSpan="2"
                     Grid.Column="2"
                     Width="500"
-                    Height="620"
+                    Height="730"
                     CornerRadius="22"
                     Background="Transparent"
                     Padding="20"
@@ -139,7 +176,7 @@
                               AllowAutoHide="True">
                     
                     <StackPanel Name="FS_LyricsPanel"
-                                Margin="0,180,0,180">
+                                Margin="0,0,0,0">
                         
                         <TextBlock Text="♪"
                                    FontSize="40"

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -12,10 +13,9 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MusicPlayerApp.Models;
+
 namespace MusicPlayerApp
 {
-   
-
     public partial class LyricsDisplay : UserControl
     {
         private List<LyricsLine> _lines = new List<LyricsLine>();
@@ -27,8 +27,10 @@ namespace MusicPlayerApp
         private int _lastScrolledIndex = -1;
         private int _dotAnimationFrame = 0;
         private DispatcherTimer? _dotAnimationTimer;
+        private Track? _currentTrack;  // Track the current track
 
         public event EventHandler<string>? LyricsLoaded;
+        public event EventHandler<TimeSpan>? SeekRequested;
 
         public LyricsDisplay()
         {
@@ -63,6 +65,21 @@ namespace MusicPlayerApp
             _dotAnimationTimer.Start();
         }
 
+        public void SetCurrentTrack(Track? track)
+        {
+            _currentTrack = track;
+            
+            // Load lyrics from track if available
+            if (_currentTrack != null && !string.IsNullOrEmpty(_currentTrack.LyricsData))
+            {
+                LoadLyricsFromString(_currentTrack.LyricsData);
+            }
+            else
+            {
+                ClearLyrics();
+            }
+        }
+
         private async void LoadLyricsButton_Click(object? sender, RoutedEventArgs e)
         {
             var topLevel = TopLevel.GetTopLevel(this);
@@ -89,6 +106,13 @@ namespace MusicPlayerApp
                 string lyricsContent = await reader.ReadToEndAsync();
 
                 LoadLyricsFromString(lyricsContent);
+                
+                // Save lyrics to current track
+                if (_currentTrack != null)
+                {
+                    _currentTrack.LyricsData = lyricsContent;
+                }
+                
                 LyricsLoaded?.Invoke(this, lyricsContent);
             }
         }
@@ -195,14 +219,14 @@ namespace MusicPlayerApp
                 
                 if (line.IsInstrumental)
                 {
-                    // Create animated dots for instrumental sections
                     var dotsPanel = new StackPanel
                     {
                         Orientation = Avalonia.Layout.Orientation.Horizontal,
                         HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                         Spacing = 8,
                         Margin = new Thickness(16, 12),
-                        Tag = i
+                        Tag = i,
+                        Cursor = new Cursor(StandardCursorType.Hand)
                     };
 
                     for (int d = 0; d < 3; d++)
@@ -218,6 +242,8 @@ namespace MusicPlayerApp
                         dotsPanel.Children.Add(dot);
                     }
 
+                    dotsPanel.PointerPressed += LyricsLine_Clicked;
+
                     _lyricsPanel.Children.Add(dotsPanel);
                 }
                 else
@@ -231,7 +257,30 @@ namespace MusicPlayerApp
                         TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(16, 12),
                         Tag = i,
-                        Foreground = new SolidColorBrush(Color.Parse("#6A6A6A"))
+                        Foreground = new SolidColorBrush(Color.Parse("#6A6A6A")),
+                        Cursor = new Cursor(StandardCursorType.Hand)
+                    };
+
+                    textBlock.PointerPressed += LyricsLine_Clicked;
+                    
+                    // Hover effect
+                    textBlock.PointerEntered += (s, e) =>
+                    {
+                        if (s is TextBlock tb && tb.Tag is int idx && idx != _currentLineIndex)
+                        {
+                            tb.Opacity = 0.8;
+                        }
+                    };
+                    
+                    textBlock.PointerExited += (s, e) =>
+                    {
+                        if (s is TextBlock tb && tb.Tag is int idx && idx != _currentLineIndex)
+                        {
+                            if (idx < _currentLineIndex)
+                                tb.Opacity = 0.6;
+                            else
+                                tb.Opacity = 0.5;
+                        }
                     };
 
                     _lyricsPanel.Children.Add(textBlock);
@@ -239,6 +288,19 @@ namespace MusicPlayerApp
             }
 
             _lyricsPanel.Children.Add(new Border { Height = 200 });
+        }
+
+        private void LyricsLine_Clicked(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is Control control && control.Tag is int lineIndex)
+            {
+                if (lineIndex >= 0 && lineIndex < _lines.Count)
+                {
+                    var seekTime = _lines[lineIndex].StartTime;
+                    SeekRequested?.Invoke(this, seekTime);
+                    e.Handled = true;
+                }
+            }
         }
 
         public void UpdatePosition(TimeSpan currentPosition)

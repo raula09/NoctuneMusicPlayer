@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using MusicPlayerApp.Models;
 using Avalonia.VisualTree;
+
 namespace MusicPlayerApp;
 
 public partial class FullscreenPlayer : Window
@@ -22,13 +23,10 @@ public partial class FullscreenPlayer : Window
     public event EventHandler<long>? SeekRequested;
     public event EventHandler<int>? VolumeRequested;
 
- 
-    
     Image? AlbumArt;
     TextBlock? AlbumNameBlock;
     TextBlock? TitleBlock;
     TextBlock? ArtistBlock;
- 
 
     private List<LyricsLine> _fsLyrics = new List<LyricsLine>();
     private int _fsCurrentLineIndex = -1;
@@ -38,14 +36,25 @@ public partial class FullscreenPlayer : Window
     DispatcherTimer? bgTimer;
     Random rand = new Random();
 
-    double blob1X = 0, blob1Y = 0, blob1TargetX = 0, blob1TargetY = 0;
-    double blob1Rotation = 0, blob1TargetRotation = 0;
+    // Enhanced blob system - now with 5 blobs for richer visuals
+    private class BlobState
+    {
+        public double X, Y, TargetX, TargetY;
+        public double Rotation, TargetRotation;
+        public double Scale, TargetScale;
+        public double ColorPhase;
+        public double NoiseOffsetX, NoiseOffsetY;
+        public double Speed;
+        public double FrequencyMultiplier;
+    }
 
-    double blob2X = 0, blob2Y = 0, blob2TargetX = 0, blob2TargetY = 0;
-    double blob2Rotation = 0, blob2TargetRotation = 0;
-
-    double blob3X = 0, blob3Y = 0, blob3TargetX = 0, blob3TargetY = 0;
-    double blob3Rotation = 0, blob3TargetRotation = 0;
+    private List<BlobState> blobs = new List<BlobState>();
+    private double globalTime = 0;
+    private double[] permutation;
+    
+    // Base colors extracted from album
+    private byte baseR, baseG, baseB;
+    private double colorShiftPhase = 0;
 
     bool _fsSeeking = false;
     double _fsSeekMax = 1;
@@ -81,6 +90,7 @@ public partial class FullscreenPlayer : Window
         if (TitleBlock != null) TitleBlock.Text = title;
         if (ArtistBlock != null) ArtistBlock.Text = artist;
 
+        InitializeNoisePermutation();
         InitBackgroundAnimation();
         InitDotAnimation();
         UpdateBackgroundFromAlbum(art);
@@ -89,6 +99,373 @@ public partial class FullscreenPlayer : Window
         Focusable = true;
         Focus();
     }
+
+    // =====================================================
+    // ADVANCED NOISE SYSTEM FOR ORGANIC MOVEMENT
+    // =====================================================
+    
+    private void InitializeNoisePermutation()
+    {
+        // Create permutation table for noise generation
+        permutation = new double[512];
+        var p = new int[256];
+        for (int i = 0; i < 256; i++) p[i] = i;
+        
+        // Shuffle using Fisher-Yates
+        for (int i = 255; i > 0; i--)
+        {
+            int j = rand.Next(i + 1);
+            int temp = p[i];
+            p[i] = p[j];
+            p[j] = temp;
+        }
+        
+        for (int i = 0; i < 512; i++)
+            permutation[i] = p[i % 256];
+    }
+
+    private double Noise(double x, double y)
+    {
+        // Simplified Perlin-style noise
+        int xi = (int)Math.Floor(x) & 255;
+        int yi = (int)Math.Floor(y) & 255;
+        
+        double xf = x - Math.Floor(x);
+        double yf = y - Math.Floor(y);
+        
+        double u = Fade(xf);
+        double v = Fade(yf);
+        
+        int aa = (int)permutation[(int)permutation[xi] + yi];
+        int ab = (int)permutation[(int)permutation[xi] + yi + 1];
+        int ba = (int)permutation[(int)permutation[xi + 1] + yi];
+        int bb = (int)permutation[(int)permutation[xi + 1] + yi + 1];
+        
+        double x1 = Lerp(Grad(aa, xf, yf), Grad(ba, xf - 1, yf), u);
+        double x2 = Lerp(Grad(ab, xf, yf - 1), Grad(bb, xf - 1, yf - 1), u);
+        
+        return Lerp(x1, x2, v);
+    }
+
+    private double Fade(double t) => t * t * t * (t * (t * 6 - 15) + 10);
+    
+    private double Lerp(double a, double b, double t) => a + t * (b - a);
+    
+    private double Grad(int hash, double x, double y)
+    {
+        int h = hash & 15;
+        double u = h < 8 ? x : y;
+        double v = h < 4 ? y : h == 12 || h == 14 ? x : 0;
+        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+    }
+
+    // =====================================================
+    // ADVANCED EASING FUNCTIONS
+    // =====================================================
+    
+    private double EaseOutElastic(double t)
+    {
+        const double c4 = (2 * Math.PI) / 3;
+        return t == 0 ? 0 : t == 1 ? 1 : 
+            Math.Pow(2, -10 * t) * Math.Sin((t * 10 - 0.75) * c4) + 1;
+    }
+
+    private double EaseInOutCubic(double t)
+    {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.Pow(-2 * t + 2, 3) / 2;
+    }
+
+    private double EaseOutBack(double t)
+    {
+        const double c1 = 1.70158;
+        const double c3 = c1 + 1;
+        return 1 + c3 * Math.Pow(t - 1, 3) + c1 * Math.Pow(t - 1, 2);
+    }
+
+    // =====================================================
+    // ENHANCED BACKGROUND ANIMATION SYSTEM
+    // =====================================================
+
+    void InitBackgroundAnimation()
+    {
+        // Initialize 5 blobs with different characteristics
+        for (int i = 0; i < 5; i++)
+        {
+            var blob = new BlobState
+            {
+                X = rand.Next(-400, 400),
+                Y = rand.Next(-400, 400),
+                TargetX = rand.Next(-400, 400),
+                TargetY = rand.Next(-400, 400),
+                Rotation = rand.Next(0, 360),
+                TargetRotation = rand.Next(0, 360),
+                Scale = 0.8 + rand.NextDouble() * 0.4,
+                TargetScale = 0.8 + rand.NextDouble() * 0.4,
+                ColorPhase = rand.NextDouble() * Math.PI * 2,
+                NoiseOffsetX = rand.NextDouble() * 1000,
+                NoiseOffsetY = rand.NextDouble() * 1000,
+                Speed = 0.004 + rand.NextDouble() * 0.006,
+                FrequencyMultiplier = 0.8 + rand.NextDouble() * 0.4
+            };
+            blob.TargetX = blob.X;
+            blob.TargetY = blob.Y;
+            blob.TargetRotation = blob.Rotation;
+            blob.TargetScale = blob.Scale;
+            blobs.Add(blob);
+        }
+
+        bgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) }; // 60 FPS
+        bgTimer.Tick += (_, __) => AnimateBackground();
+        bgTimer.Start();
+    }
+
+    void AnimateBackground()
+    {
+        globalTime += 0.016; // 16ms per frame
+        colorShiftPhase += 0.001;
+
+        var blobElements = new[]
+        {
+            this.FindControl<Ellipse>("BG1"),
+            this.FindControl<Ellipse>("BG2"),
+            this.FindControl<Ellipse>("BG3"),
+            this.FindControl<Ellipse>("BG4"),
+            this.FindControl<Ellipse>("BG5")
+        };
+
+        for (int i = 0; i < Math.Min(blobs.Count, blobElements.Length); i++)
+        {
+            var blob = blobs[i];
+            var element = blobElements[i];
+            if (element == null) continue;
+
+            // Multi-layered noise-based movement
+            double noiseX = Noise(blob.NoiseOffsetX + globalTime * 0.3 * blob.FrequencyMultiplier, globalTime * 0.2);
+            double noiseY = Noise(blob.NoiseOffsetY + globalTime * 0.3 * blob.FrequencyMultiplier, globalTime * 0.2);
+            double noiseX2 = Noise(blob.NoiseOffsetX + globalTime * 0.15, globalTime * 0.1);
+            double noiseY2 = Noise(blob.NoiseOffsetY + globalTime * 0.15, globalTime * 0.1);
+
+            // Smooth interpolation to targets with easing
+            blob.X += (blob.TargetX - blob.X) * blob.Speed;
+            blob.Y += (blob.TargetY - blob.Y) * blob.Speed;
+            blob.Rotation += (blob.TargetRotation - blob.Rotation) * (blob.Speed * 0.7);
+            blob.Scale += (blob.TargetScale - blob.Scale) * (blob.Speed * 1.2);
+
+            // Occasionally set new targets for variety
+            if (rand.NextDouble() < 0.003 * (i + 1) * 0.5)
+            {
+                blob.TargetX = rand.Next(-450, 450);
+                blob.TargetY = rand.Next(-450, 450);
+                blob.TargetRotation = rand.Next(0, 360);
+                blob.TargetScale = 0.7 + rand.NextDouble() * 0.6;
+            }
+
+            // Complex wave patterns with multiple frequencies
+            double wave1 = Math.Sin(globalTime * 0.5 * blob.FrequencyMultiplier) * 150;
+            double wave2 = Math.Cos(globalTime * 0.3 * blob.FrequencyMultiplier) * 100;
+            double wave3 = Math.Sin(globalTime * 0.8 * blob.FrequencyMultiplier) * 50;
+            
+            double finalX = blob.X + noiseX * 200 + noiseX2 * 80 + wave1 + wave3;
+            double finalY = blob.Y + noiseY * 200 + noiseY2 * 80 + wave2 + wave3;
+
+            // Apply transforms
+            var tx = GetTranslateTransform(element);
+            var rx = GetRotateTransform(element);
+            var sx = GetScaleTransform(element);
+
+            if (tx != null)
+            {
+                tx.X = finalX;
+                tx.Y = finalY;
+            }
+
+            if (rx != null)
+            {
+                double rotationNoise = Noise(globalTime * 0.2 + i, globalTime * 0.15) * 30;
+                rx.Angle = blob.Rotation + rotationNoise;
+            }
+
+            if (sx != null)
+            {
+                // Pulsing scale effect
+                double scalePulse = Math.Sin(globalTime * 1.5 + i) * 0.15;
+                double finalScale = blob.Scale + scalePulse;
+                sx.ScaleX = finalScale;
+                sx.ScaleY = finalScale;
+            }
+
+            // Dynamic color shifting
+            UpdateBlobColor(element, i, blob);
+        }
+
+        // Update background base color with subtle shifting
+        UpdateBackgroundColor();
+    }
+
+    private void UpdateBlobColor(Ellipse element, int index, BlobState blob)
+    {
+        if (element == null) return;
+
+        // Calculate color variation based on time and noise
+        double colorNoise = Noise(globalTime * 0.1 + index * 10, globalTime * 0.08);
+        double hueShift = (Math.Sin(globalTime * 0.3 + blob.ColorPhase) * 40) + (colorNoise * 20);
+        double satShift = 1.4 + Math.Sin(globalTime * 0.4 + index) * 0.3;
+        
+        var color = EnhanceColor(baseR, baseG, baseB, satShift, (int)hueShift);
+
+        // Dynamic gradient based on position and time
+        double gradientPhase = globalTime * 0.5 + index * 0.3;
+        double originX = 0.5 + Math.Sin(gradientPhase) * 0.3;
+        double originY = 0.5 + Math.Cos(gradientPhase * 0.8) * 0.3;
+
+        // Opacity pulsing
+        byte alpha1 = (byte)(180 + Math.Sin(globalTime * 0.6 + index) * 60);
+        byte alpha2 = (byte)(100 + Math.Sin(globalTime * 0.4 + index) * 50);
+
+        var gradient = new RadialGradientBrush
+        {
+            GradientOrigin = new RelativePoint(originX, originY, RelativeUnit.Relative),
+            Center = new RelativePoint(0.5, 0.5, RelativeUnit.Relative),
+            Radius = 1.2 + Math.Sin(globalTime * 0.3 + index) * 0.15,
+            GradientStops = new GradientStops
+            {
+                new GradientStop(Color.FromArgb(alpha1, color.r, color.g, color.b), 0.0),
+                new GradientStop(Color.FromArgb(alpha2, color.r, color.g, color.b), 0.5),
+                new GradientStop(Color.FromArgb(0, color.r, color.g, color.b), 1.0)
+            }
+        };
+        element.Fill = gradient;
+    }
+
+    private void UpdateBackgroundColor()
+    {
+        // Subtle background color pulsing
+        double pulse = Math.Sin(colorShiftPhase * 2) * 0.05 + 0.65;
+        var baseDark = DarkenColor(baseR, baseG, baseB, pulse);
+        Background = new SolidColorBrush(Color.FromRgb(baseDark.r, baseDark.g, baseDark.b));
+    }
+
+    // =====================================================
+    // TRANSFORM HELPERS
+    // =====================================================
+
+    private TranslateTransform? GetTranslateTransform(Ellipse? e)
+        => e?.RenderTransform is TransformGroup tg && tg.Children.Count > 0 
+            ? tg.Children[0] as TranslateTransform : null;
+
+    private RotateTransform? GetRotateTransform(Ellipse? e)
+        => e?.RenderTransform is TransformGroup tg && tg.Children.Count > 2 
+            ? tg.Children[2] as RotateTransform : null;
+
+    private ScaleTransform? GetScaleTransform(Ellipse? e)
+        => e?.RenderTransform is TransformGroup tg && tg.Children.Count > 1 
+            ? tg.Children[1] as ScaleTransform : null;
+
+    // =====================================================
+    // COLOR MANIPULATION
+    // =====================================================
+
+    private void UpdateBackgroundFromAlbum(Bitmap? art)
+    {
+        if (art == null) return;
+
+        var c = AlbumColorExtractor.Extract(art);
+        baseR = c.R;
+        baseG = c.G;
+        baseB = c.B;
+
+        UpdateBackgroundColor();
+
+        // Initialize blob colors
+        var blobElements = new[]
+        {
+            this.FindControl<Ellipse>("BG1"),
+            this.FindControl<Ellipse>("BG2"),
+            this.FindControl<Ellipse>("BG3"),
+            this.FindControl<Ellipse>("BG4"),
+            this.FindControl<Ellipse>("BG5")
+        };
+
+        for (int i = 0; i < Math.Min(blobs.Count, blobElements.Length); i++)
+        {
+            if (blobElements[i] != null)
+            {
+                UpdateBlobColor(blobElements[i], i, blobs[i]);
+            }
+        }
+    }
+
+    (byte r, byte g, byte b) DarkenColor(byte r, byte g, byte b, double factor)
+    {
+        return (
+            (byte)Math.Min(255, r * factor),
+            (byte)Math.Min(255, g * factor),
+            (byte)Math.Min(255, b * factor)
+        );
+    }
+
+    (byte r, byte g, byte b) EnhanceColor(byte r, byte g, byte b, double saturation, int hueShift)
+    {
+        double rd = r / 255.0;
+        double gd = g / 255.0;
+        double bd = b / 255.0;
+
+        double max = Math.Max(rd, Math.Max(gd, bd));
+        double min = Math.Min(rd, Math.Min(gd, bd));
+        double h = 0, s = 0, l = (max + min) / 2.0;
+
+        if (max != min)
+        {
+            double d = max - min;
+            s = l > 0.5 ? d / (2.0 - max - min) : d / (max + min);
+
+            if (max == rd) h = (gd - bd) / d + (gd < bd ? 6 : 0);
+            else if (max == gd) h = (bd - rd) / d + 2;
+            else h = (rd - gd) / d + 4;
+            h /= 6.0;
+        }
+
+        s = Math.Min(1.0, s * saturation);
+        h = (h + hueShift / 360.0) % 1.0;
+        if (h < 0) h += 1.0;
+        
+        l = Math.Min(0.85, l * 1.15);
+
+        double r1, g1, b1;
+        if (s == 0)
+        {
+            r1 = g1 = b1 = l;
+        }
+        else
+        {
+            double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            double p = 2 * l - q;
+            r1 = HueToRgb(p, q, h + 1.0 / 3.0);
+            g1 = HueToRgb(p, q, h);
+            b1 = HueToRgb(p, q, h - 1.0 / 3.0);
+        }
+
+        return (
+            (byte)Math.Min(255, Math.Max(0, r1 * 255)),
+            (byte)Math.Min(255, Math.Max(0, g1 * 255)),
+            (byte)Math.Min(255, Math.Max(0, b1 * 255))
+        );
+    }
+
+    double HueToRgb(double p, double q, double t)
+    {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1.0 / 6.0) return p + (q - p) * 6 * t;
+        if (t < 1.0 / 2.0) return q;
+        if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
+        return p;
+    }
+
+    // =====================================================
+    // LYRICS SYSTEM (UNCHANGED)
+    // =====================================================
+
     private void InitDotAnimation()
     {
         _fsDotTimer = new DispatcherTimer 
@@ -116,6 +493,7 @@ public partial class FullscreenPlayer : Window
             }
         
             BuildFSLyricsUI();
+            CenterMainContent(false);
         }
         else
         {
@@ -123,6 +501,23 @@ public partial class FullscreenPlayer : Window
             {
                 FS_LyricsContainer.IsVisible = false;
             }
+            CenterMainContent(true);
+        }
+    }
+
+    private void CenterMainContent(bool center)
+    {
+        if (FS_MainContent == null) return;
+
+        if (center)
+        {
+            FS_MainContent.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            FS_MainContent.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        }
+        else
+        {
+            FS_MainContent.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            FS_MainContent.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         }
     }
 
@@ -157,7 +552,8 @@ public partial class FullscreenPlayer : Window
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     Spacing = 8,
                     Margin = new Avalonia.Thickness(16, 12),
-                    Tag = i
+                    Tag = i,
+                    Cursor = new Cursor(StandardCursorType.Hand)
                 };
 
                 for (int d = 0; d < 3; d++)
@@ -173,6 +569,8 @@ public partial class FullscreenPlayer : Window
                     dotsPanel.Children.Add(dot);
                 }
 
+                dotsPanel.PointerPressed += FSLyricsLine_Clicked;
+
                 FS_LyricsPanel.Children.Add(dotsPanel);
             }
             else
@@ -180,16 +578,52 @@ public partial class FullscreenPlayer : Window
                 var textBlock = new TextBlock
                 {
                     Text = line.Text,
-                    FontSize = 26,
+                    FontSize = 34,
                     FontWeight = FontWeight.SemiBold,
                     TextAlignment = TextAlignment.Center,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Avalonia.Thickness(16, 12),
                     Tag = i,
-                    Foreground = new SolidColorBrush(Color.Parse("#6A6A6A"))
+                    Foreground = new SolidColorBrush(Color.Parse("#6A6A6A")),
+                    Cursor = new Cursor(StandardCursorType.Hand)
+                };
+
+                textBlock.PointerPressed += FSLyricsLine_Clicked;
+                
+                textBlock.PointerEntered += (s, e) =>
+                {
+                    if (s is TextBlock tb && tb.Tag is int idx && idx != _fsCurrentLineIndex)
+                    {
+                        tb.Opacity = 0.8;
+                    }
+                };
+                
+                textBlock.PointerExited += (s, e) =>
+                {
+                    if (s is TextBlock tb && tb.Tag is int idx && idx != _fsCurrentLineIndex)
+                    {
+                        if (idx < _fsCurrentLineIndex)
+                            tb.Opacity = 0.6;
+                        else
+                            tb.Opacity = 0.5;
+                    }
                 };
 
                 FS_LyricsPanel.Children.Add(textBlock);
+            }
+        }
+    }
+
+    private void FSLyricsLine_Clicked(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control control && control.Tag is int lineIndex)
+        {
+            if (lineIndex >= 0 && lineIndex < _fsLyrics.Count)
+            {
+                var seekTime = _fsLyrics[lineIndex].StartTime;
+                long milliseconds = (long)seekTime.TotalMilliseconds;
+                SeekRequested?.Invoke(this, milliseconds);
+                e.Handled = true;
             }
         }
     }
@@ -236,7 +670,7 @@ public partial class FullscreenPlayer : Window
                 if (isActive)
                 {
                     textBlock.Foreground = new SolidColorBrush(Color.Parse("#FFFFFF"));
-                    textBlock.FontSize = 30;
+                    textBlock.FontSize = 40;
                     textBlock.FontWeight = FontWeight.Bold;
                     textBlock.Opacity = 1.0;
                     activeControl = textBlock;
@@ -244,14 +678,14 @@ public partial class FullscreenPlayer : Window
                 else if (lineIndex < _fsCurrentLineIndex)
                 {
                     textBlock.Foreground = new SolidColorBrush(Color.Parse("#4A4A4A"));
-                    textBlock.FontSize = 26;
+                    textBlock.FontSize = 34;
                     textBlock.FontWeight = FontWeight.SemiBold;
                     textBlock.Opacity = 0.6;
                 }
                 else
                 {
                     textBlock.Foreground = new SolidColorBrush(Color.Parse("#6A6A6A"));
-                    textBlock.FontSize = 26;
+                    textBlock.FontSize = 34;
                     textBlock.FontWeight = FontWeight.SemiBold;
                     textBlock.Opacity = 0.5;
                 }
@@ -302,29 +736,45 @@ public partial class FullscreenPlayer : Window
         {
             try
             {
-                await Task.Delay(10);
+                await Task.Delay(50);
             
                 FS_LyricsScrollViewer.UpdateLayout();
+                FS_LyricsPanel.UpdateLayout();
                 control.UpdateLayout();
 
-                var bounds = control.Bounds;
-                var scrollBounds = FS_LyricsScrollViewer.Bounds;
-            
-                if (scrollBounds.Height > 0)
-                {
-                    var controlPosition = control.TranslatePoint(new Avalonia.Point(0, 0), FS_LyricsPanel);
+                var controlPosition = control.TranslatePoint(new Avalonia.Point(0, 0), FS_LyricsPanel);
                 
-                    if (controlPosition != null)
+                if (controlPosition != null)
+                {
+                    var scrollBounds = FS_LyricsScrollViewer.Bounds;
+                    var controlBounds = control.Bounds;
+                    
+                    var targetOffset = controlPosition.Value.Y - (scrollBounds.Height / 2) + (controlBounds.Height / 2);
+                    
+                    var extent = FS_LyricsScrollViewer.Extent.Height;
+                    var viewport = FS_LyricsScrollViewer.Viewport.Height;
+                    var maxOffset = Math.Max(0, extent - viewport);
+                    
+                    targetOffset = Math.Clamp(targetOffset, 0, maxOffset);
+                    
+                    var currentOffset = FS_LyricsScrollViewer.Offset.Y;
+                    var distance = Math.Abs(targetOffset - currentOffset);
+                    
+                    if (distance < 5)
                     {
-                        var targetOffset = controlPosition.Value.Y - (scrollBounds.Height / 2) + (bounds.Height / 2);
-                    
-                        var extent = FS_LyricsScrollViewer.Extent.Height;
-                        var viewport = FS_LyricsScrollViewer.Viewport.Height;
-                        var maxOffset = extent - viewport;
-                    
-                        targetOffset = Math.Clamp(targetOffset, 0, Math.Max(0.0, maxOffset));
-                    
                         FS_LyricsScrollViewer.Offset = new Avalonia.Vector(0, targetOffset);
+                    }
+                    else
+                    {
+                        var steps = Math.Min(20, (int)(distance / 10));
+                        for (int i = 1; i <= steps; i++)
+                        {
+                            await Task.Delay(15);
+                            var progress = (double)i / steps;
+                            var easedProgress = 1 - Math.Pow(1 - progress, 3);
+                            var newOffset = currentOffset + (targetOffset - currentOffset) * easedProgress;
+                            FS_LyricsScrollViewer.Offset = new Avalonia.Vector(0, newOffset);
+                        }
                     }
                 }
             }
@@ -334,6 +784,11 @@ public partial class FullscreenPlayer : Window
             }
         });
     }
+
+    // =====================================================
+    // PLAYBACK CONTROLS (UNCHANGED)
+    // =====================================================
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -458,111 +913,5 @@ public partial class FullscreenPlayer : Window
         if (ArtistBlock != null) ArtistBlock.Text = artist;
 
         UpdateBackgroundFromAlbum(art);
-    }
-
-    void UpdateBackgroundFromAlbum(Bitmap? art)
-    {
-        if (art == null) return;
-
-        var c = AlbumColorExtractor.Extract(art);
-        Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-
-        var bg1 = this.FindControl<Ellipse>("BG1");
-        var bg2 = this.FindControl<Ellipse>("BG2");
-        var bg3 = this.FindControl<Ellipse>("BG3");
-
-        if (bg1 != null) bg1.Fill = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
-
-        var (r2, g2, b2) = ShiftColor(c.R, c.G, c.B, 40);
-        if (bg2 != null) bg2.Fill = new SolidColorBrush(Color.FromRgb(r2, g2, b2));
-
-        var (r3, g3, b3) = ShiftColor(c.R, c.G, c.B, -40);
-        if (bg3 != null) bg3.Fill = new SolidColorBrush(Color.FromRgb(r3, g3, b3));
-    }
-
-    (byte r, byte g, byte b) ShiftColor(byte r, byte g, byte b, int shift)
-    {
-        int nr = r + shift;
-        int ng = g + shift / 2;
-        int nb = b - shift / 2;
-
-        nr = ((nr % 256) + 256) % 256;
-        ng = ((ng % 256) + 256) % 256;
-        nb = ((nb % 256) + 256) % 256;
-
-        if (nr < 30) nr += 60;
-        if (ng < 30) ng += 60;
-        if (nb < 30) nb += 60;
-
-        return ((byte)Math.Min(255, nr), (byte)Math.Min(255, ng), (byte)Math.Min(255, nb));
-    }
-
-    TranslateTransform? Tx(Ellipse? e)
-        => e?.RenderTransform is TransformGroup tg ? tg.Children[0] as TranslateTransform : null;
-
-    RotateTransform? Rx(Ellipse? e)
-        => e?.RenderTransform is TransformGroup tg ? tg.Children[2] as RotateTransform : null;
-
-    void InitBackgroundAnimation()
-    {
-        blob1X = blob1TargetX = rand.Next(-400, 400);
-        blob1Y = blob1TargetY = rand.Next(-400, 400);
-        blob1Rotation = blob1TargetRotation = rand.Next(0, 360);
-
-        blob2X = blob2TargetX = rand.Next(-500, 500);
-        blob2Y = blob2TargetY = rand.Next(-500, 500);
-        blob2Rotation = blob2TargetRotation = rand.Next(0, 360);
-
-        blob3X = blob3TargetX = rand.Next(-450, 450);
-        blob3Y = blob3TargetY = rand.Next(-450, 450);
-        blob3Rotation = blob3TargetRotation = rand.Next(0, 360);
-
-        bgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
-        bgTimer.Tick += (_, __) => AnimateBackground();
-        bgTimer.Start();
-    }
-
-    void AnimateBackground()
-    {
-        double t = DateTime.Now.Ticks * 0.0000001;
-
-        var bg1 = this.FindControl<Ellipse>("BG1");
-        var bg2 = this.FindControl<Ellipse>("BG2");
-        var bg3 = this.FindControl<Ellipse>("BG3");
-
-        var tx1 = Tx(bg1);
-        var rx1 = Rx(bg1);
-        var tx2 = Tx(bg2);
-        var rx2 = Rx(bg2);
-        var tx3 = Tx(bg3);
-        var rx3 = Rx(bg3);
-
-        blob1X += (blob1TargetX - blob1X) * 0.015;
-        blob1Y += (blob1TargetY - blob1Y) * 0.015;
-        blob1Rotation += (blob1TargetRotation - blob1Rotation) * 0.01;
-
-        blob2X += (blob2TargetX - blob2X) * 0.012;
-        blob2Y += (blob2TargetY - blob2Y) * 0.012;
-        blob2Rotation += (blob2TargetRotation - blob2Rotation) * 0.008;
-
-        blob3X += (blob3TargetX - blob3X) * 0.018;
-        blob3Y += (blob3TargetY - blob3Y) * 0.018;
-        blob3Rotation += (blob3TargetRotation - blob3Rotation) * 0.012;
-
-        double w1x = Math.Sin(t * 0.4) * 80;
-        double w1y = Math.Cos(t * 0.3) * 80;
-        double w2x = Math.Sin(t * 0.6) * 110;
-        double w2y = Math.Cos(t * 0.4) * 110;
-        double w3x = Math.Sin(t * 0.5) * 90;
-        double w3y = Math.Cos(t * 0.5) * 90;
-
-        if (tx1 != null) { tx1.X = blob1X + w1x; tx1.Y = blob1Y + w1y; }
-        if (rx1 != null) rx1.Angle = blob1Rotation;
-
-        if (tx2 != null) { tx2.X = blob2X + w2x; tx2.Y = blob2Y + w2y; }
-        if (rx2 != null) rx2.Angle = blob2Rotation;
-
-        if (tx3 != null) { tx3.X = blob3X + w3x; tx3.Y = blob3Y + w3y; }
-        if (rx3 != null) rx3.Angle = blob3Rotation;
     }
 }

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using MusicPlayerApp.Services;
 
 namespace MusicPlayerApp.Models;
 
@@ -21,6 +22,7 @@ public class Track : INotifyPropertyChanged
     private int _index;
     private bool _metadataLoaded;
     private string? _lyricsData;
+    private bool _lyricsLoaded;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -30,6 +32,7 @@ public class Track : INotifyPropertyChanged
         _path = string.Empty;
         _dateAdded = DateTime.Now;
         _metadataLoaded = false;
+        _lyricsLoaded = false;
     }
 
     public Track(string path)
@@ -38,6 +41,31 @@ public class Track : INotifyPropertyChanged
         _path = path;
         _dateAdded = DateTime.Now;
         _metadataLoaded = false;
+        _lyricsLoaded = false;
+        
+        // Load lyrics from permanent storage
+        LoadLyricsFromDatabase();
+    }
+
+    private void LoadLyricsFromDatabase()
+    {
+        if (_lyricsLoaded) return;
+    
+        try
+        {
+            var savedLyrics = LyricsService.GetLyrics(_path);
+            if (savedLyrics != null)
+            {
+                // ✅ Set backing field directly - DON'T use the property setter
+                _lyricsData = savedLyrics;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading lyrics: {ex.Message}");
+        }
+    
+        _lyricsLoaded = true;
     }
 
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -138,12 +166,46 @@ public class Track : INotifyPropertyChanged
 
     public string? LyricsData
     {
-        get => _lyricsData;
-        set => SetProperty(ref _lyricsData, value);
+        get
+        {
+            if (!_lyricsLoaded)
+            {
+                LoadLyricsFromDatabase();
+            }
+            return _lyricsData;
+        }
+        set 
+        { 
+            Console.WriteLine($"🎵 LyricsData setter called for: {System.IO.Path.GetFileName(_path)}");
+            Console.WriteLine($"   Old value length: {_lyricsData?.Length ?? 0}");
+            Console.WriteLine($"   New value length: {value?.Length ?? 0}");
+        
+            if (SetProperty(ref _lyricsData, value))
+            {
+                Console.WriteLine($"   → Property changed, saving to LyricsService");
+                LyricsService.SaveLyrics(_path, value);
+                _lyricsLoaded = true;
+                OnPropertyChanged(nameof(HasLyrics));
+            }
+            else
+            {
+                Console.WriteLine($"   → Property unchanged, not saving");
+            }
+        }
     }
 
     [BsonIgnore]
-    public bool HasLyrics => !string.IsNullOrEmpty(_lyricsData);
+    public bool HasLyrics
+    {
+        get
+        {
+            if (!_lyricsLoaded)
+            {
+                LoadLyricsFromDatabase();
+            }
+            return !string.IsNullOrEmpty(_lyricsData);
+        }
+    }
 
     [BsonIgnore]
     public string DateAddedString => _dateAdded.ToString("yyyy-MM-dd");
@@ -173,6 +235,26 @@ public class Track : INotifyPropertyChanged
         catch { }
 
         _metadataLoaded = true;
+    }
+
+    public bool IsLiked
+    {
+        get => LikesService.IsLiked(Path);
+        set
+        {
+            if (value)
+                LikesService.Like(this);
+            else
+                LikesService.Unlike(Path);
+            
+            OnPropertyChanged(nameof(IsLiked));
+        }
+    }
+
+    public void ToggleLike()
+    {
+        LikesService.ToggleLike(this);
+        OnPropertyChanged(nameof(IsLiked));
     }
 
     public void LoadMetadata()
