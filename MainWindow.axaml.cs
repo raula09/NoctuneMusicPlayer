@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using System.Security.Claims;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -60,9 +61,22 @@ public partial class MainWindow : UserControl
             return Name ?? base.ToString();
         }
     }
+    public class TrackDto
+    {
+        public string Path { get; set; } = string.Empty;
+        public string? Title { get; set; }
+        public string? Artist { get; set; }
+        public string? Album { get; set; }
+        public DateTime DateAdded { get; set; }
+    }
+
 
     const int VisualBarCount = 120;
-
+    private double _currentWidth;
+    private double _currentHeight;
+    private const double SMALL_SCREEN = 900;
+    private const double MEDIUM_SCREEN = 1200;
+    private const double LARGE_SCREEN = 1400;
     readonly object _audioLock = new();
     private TrackModel? _lastFullscreenTrack;
     private ObservableCollection<TrackModel> _playlist = new();
@@ -72,6 +86,9 @@ public partial class MainWindow : UserControl
     private TrackModel? _currentTrack;
     double _seekMax = 1;
     bool _seeking = false;
+
+    
+    public ObservableCollection<TrackModel> Tracks => _viewTracks;
 
  
     
@@ -113,139 +130,161 @@ public partial class MainWindow : UserControl
 
     DispatcherTimer waveTimer;
 
-    public MainWindow(string? token)
-    {
-        _token = token;
-        InitializeComponent();
-        Core.Initialize();
-        WireForcedPlaylistUI();
-        _ = SyncService.SyncAsync(_token);
-        InitWaveAnimation();
-        InitializeLyrics();
-        OpenPlaylistsButton = this.FindControl<Button>("OpenPlaylistsButton");
-        if (OpenPlaylistsButton != null)
-            OpenPlaylistsButton.Click += OnPlaylistsButtonClick;
-
-        _playHistory = StatsService.LoadPlayHistory() ?? new Dictionary<TrackModel, int>();
-        _listeningSessions = StatsService.LoadListeningSessions() ?? new List<ListeningSession>();
-        _accountCreated = StatsService.LoadAccountCreatedDate();
-       
-        LikedSongsButton = this.FindControl<Button>("LikedSongsButton");
-        LikedSongsCount = this.FindControl<TextBlock>("LikedSongsCount");
-
-        if (LikedSongsButton != null)
-        {
-            LikedSongsButton.Click += OnLikedSongsClick;
-        }
-
-        UpdateLikedSongsCount();
-        
-        if (!string.IsNullOrEmpty(token))
-        {
-            _userEmail = GetEmailFromToken(token);
-            StatsService.SaveUserData(_userEmail, _accountCreated);
-        }
-        else
-        {
-            var stored = StatsService.LoadUserEmail();
-            if (!string.IsNullOrEmpty(stored))
-                _userEmail = stored;
-        }
-
-        AttachedToVisualTree += (_, _) => Focus();
-        KeyDown += MainWindow_KeyDown;
-        var lyricsToggleButton = this.FindControl<Button>("LyricsToggleButton");
-        if (lyricsToggleButton != null)
-        {
-            lyricsToggleButton.Click += OnLyricsToggleClick;
-        }
-
-        MiniPrev.Click += (_, _) => Prev(null, new RoutedEventArgs());
-        MiniNext.Click += (_, _) => Next(null, new RoutedEventArgs());
-        MiniPlayPause.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
-        MiniPlayButton.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
-
-        FullscreenButton.Click += (_, _) => ShowFullscreen();
-
-        _libVLC = new LibVLC("--aout=alsa");
-        _mp = new MediaPlayer(_libVLC);
-
-        _capture = new PipeWireCapture(
-            "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor",
-            OnPipeWireSamples);
-        _capture.Start();
-
-        PlaylistBox.ItemsSource = _viewTracks;
-        QueueItemsControl.ItemsSource = _queuePreview;
-
-        _settings = SettingsService.Load() ?? new AppSettings();
-        Width = _settings.WindowWidth;
-        Height = _settings.WindowHeight;
-        VolumeSlider.Value = _settings.Volume;
-
-        var savedTracks = LoadAllTracks();
-        var loadedPaths = new HashSet<string>();
-
-        foreach (var track in savedTracks)
-        {
-            if (File.Exists(track.Path))
-            {
-                _playlist.Add(track);
-                loadedPaths.Add(track.Path);
-            }
-        }
-
-        foreach (var p in _settings.Playlist)
-        {
-            if (File.Exists(p) && !loadedPaths.Contains(p))
-            {
-                var newTrack = new TrackModel(p);
-                _playlist.Add(newTrack);
-                SaveTrack(newTrack);
-            }
-        }
-
-        Console.WriteLine($"✓ Total tracks in playlist: {_playlist.Count}");
-
-        RebuildView();
-        _index = _settings.LastIndex;
-
-        if (_index >= 0 && _index < _playlist.Count)
-            PlayIndex();
-        else
-            UpdateQueuePreview();
-
-        ShuffleButton.Click += ShuffleButton_Click;
-        LoopButton.Click += LoopButton_Click;
-
-        _mp.EndReached += MediaPlayer_EndReached;
-        _mp.LengthChanged += MediaPlayer_LengthChanged;
-
-        PlaylistBox.SelectionChanged += PlaylistBox_SelectionChanged;
-
-        PlayContextMenuItem.Click += PlayContextMenuItem_Click;
-        RemoveContextMenuItem.Click += RemoveContextMenuItem_Click;
-        OpenFolderContextMenuItem.Click += OpenFolderContextMenuItem_Click;
-        AddToPlaylistMenuItem.Click += AddToPlaylist;
-        UploadLyricsMenuItem.Click += UploadLyrics_Click;
-        PlayPauseButton.Click += PlayPause;
-        PrevButton.Click += Prev;
-        NextButton.Click += Next;
-
-        VolumeSlider.ValueChanged += VolumeChanged;
-       
    
+public MainWindow(string? token)
+{
+    _token = token;
+    InitializeComponent();
+    Core.Initialize();
+    WireForcedPlaylistUI();
+    _ = SyncService.SyncAsync(_token);
+    InitWaveAnimation();
+    InitializeLyrics();
+    OpenPlaylistsButton = this.FindControl<Button>("OpenPlaylistsButton");
+    if (OpenPlaylistsButton != null)
+        OpenPlaylistsButton.Click += OnPlaylistsButtonClick;
 
-        PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingStrategies.Tunnel);
+    _playHistory = StatsService.LoadPlayHistory() ?? new Dictionary<TrackModel, int>();
+    _listeningSessions = StatsService.LoadListeningSessions() ?? new List<ListeningSession>();
+    _accountCreated = StatsService.LoadAccountCreatedDate();
+   
+    LikedSongsButton = this.FindControl<Button>("LikedSongsButton");
+    LikedSongsCount = this.FindControl<TextBlock>("LikedSongsCount");
 
-        SearchBox.PropertyChanged += SearchBox_PropertyChanged;
-        SortBox.SelectionChanged += SortBox_SelectionChanged;
-
-        AlbumArt.DoubleTapped += AlbumArt_DoubleTapped;
-
-        InitVisualizer();
-        InitPositionTimer();
+    if (LikedSongsButton != null)
+    {
+        LikedSongsButton.Click += OnLikedSongsClick;
     }
+    DataContext = this;
+
+    UpdateLikedSongsCount();
+    
+    if (!string.IsNullOrEmpty(token))
+    {
+        _userEmail = GetEmailFromToken(token);
+        StatsService.SaveUserData(_userEmail, _accountCreated);
+    }
+    else
+    {
+        var stored = StatsService.LoadUserEmail();
+        if (!string.IsNullOrEmpty(stored))
+            _userEmail = stored;
+    }
+
+    AttachedToVisualTree += (_, _) => Focus();
+    KeyDown += MainWindow_KeyDown;
+    var lyricsToggleButton = this.FindControl<Button>("LyricsToggleButton");
+    if (lyricsToggleButton != null)
+    {
+        lyricsToggleButton.Click += OnLyricsToggleClick;
+    }
+
+    MiniPrev.Click += (_, _) => Prev(null, new RoutedEventArgs());
+    MiniNext.Click += (_, _) => Next(null, new RoutedEventArgs());
+    MiniPlayPause.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
+    MiniPlayButton.Click += (_, _) => PlayPause(null, new RoutedEventArgs());
+
+    FullscreenButton.Click += (_, _) => ShowFullscreen();
+
+    _libVLC = new LibVLC("--aout=alsa");
+    _mp = new MediaPlayer(_libVLC);
+
+    _capture = new PipeWireCapture(
+        "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor",
+        OnPipeWireSamples);
+    _capture.Start();
+
+    PlaylistBox.ItemsSource = _viewTracks;
+    QueueItemsControl.ItemsSource = _queuePreview;
+
+    _settings = SettingsService.Load() ?? new AppSettings();
+    Width = _settings.WindowWidth;
+    Height = _settings.WindowHeight;
+    VolumeSlider.Value = _settings.Volume;
+
+    var savedTracks = LoadAllTracks();
+    var loadedPaths = new HashSet<string>();
+
+    foreach (var track in savedTracks)
+    {
+        if (File.Exists(track.Path))
+        {
+            _playlist.Add(track);
+            loadedPaths.Add(track.Path);
+        }
+    }
+
+    foreach (var p in _settings.Playlist)
+    {
+        if (File.Exists(p) && !loadedPaths.Contains(p))
+        {
+            var newTrack = new TrackModel(p);
+            _playlist.Add(newTrack);
+            SaveTrack(newTrack);
+        }
+    }
+    Console.WriteLine($"✓ Total tracks in playlist from cache: {_playlist.Count}");
+
+    RebuildView();
+    UpdateQueuePreview();
+
+    LoadLargestOfflinePlaylist();
+
+    ShuffleButton.Click += ShuffleButton_Click;
+    LoopButton.Click += LoopButton_Click;
+
+    _mp.EndReached += MediaPlayer_EndReached;
+    _mp.LengthChanged += MediaPlayer_LengthChanged;
+
+    PlaylistBox.SelectionChanged += PlaylistBox_SelectionChanged;
+
+    PlayContextMenuItem.Click += PlayContextMenuItem_Click;
+    RemoveContextMenuItem.Click += RemoveContextMenuItem_Click;
+    OpenFolderContextMenuItem.Click += OpenFolderContextMenuItem_Click;
+    AddToPlaylistMenuItem.Click += AddToPlaylist;
+    UploadLyricsMenuItem.Click += UploadLyrics_Click;
+    PlayPauseButton.Click += PlayPause;
+    PrevButton.Click += Prev;
+    NextButton.Click += Next;
+
+    AddToQueueContextMenuItem.Click += AddToQueueContextMenuItem_Click;
+    PlayNextContextMenuItem.Click += PlayNextContextMenuItem_Click;
+
+    VolumeSlider.ValueChanged += VolumeChanged;
+
+    PlaylistBox.AddHandler(PointerPressedEvent, PlaylistBox_PointerPressed, RoutingStrategies.Tunnel);
+
+    SearchBox.PropertyChanged += SearchBox_PropertyChanged;
+    SortBox.SelectionChanged += SortBox_SelectionChanged;
+
+    AlbumArt.DoubleTapped += AlbumArt_DoubleTapped;
+
+    InitVisualizer();
+    InitPositionTimer();
+     
+    InitializeResponsive();
+}
+
+private void InitializeResponsive()
+{ 
+    
+    this.PropertyChanged += OnResponsivePropertyChanged;
+    
+     
+    var hamburger = this.FindControl<Button>("HamburgerButton");
+    if (hamburger != null)
+    {
+        hamburger.Click += OnHamburgerClick;
+    }
+ 
+    var mobileLyrics = this.FindControl<Button>("MobileLyricsButton");
+    if (mobileLyrics != null)
+    {
+        mobileLyrics.Click += OnMobileLyricsClick;
+    }
+     
+    Dispatcher.UIThread.Post(() => UpdateResponsiveLayout(), DispatcherPriority.Loaded);
+}
     private void InitializeLyrics()
     {
         _lyricsDisplay = this.FindControl<LyricsDisplay>("LyricsDisplay");
@@ -293,6 +332,163 @@ public partial class MainWindow : UserControl
     {
         LoadLikedSongsPlaylist();
     }
+private void LoadLargestOfflinePlaylist()
+{
+    try
+    {
+        Console.WriteLine("🔍 Looking for offline playlists...");
+        
+        var offlineService = new OfflinePlaylistService();
+        var playlists = offlineService.GetPlaylists();
+        
+        if (playlists == null || playlists.Count == 0)
+        {
+            Console.WriteLine("⚠️ No offline playlists found");
+            return;
+        }
+
+        Console.WriteLine($"✓ Found {playlists.Count} offline playlists");
+
+        PlaylistDto? largestPlaylist = null;
+        int maxTrackCount = 0;
+
+        foreach (var playlist in playlists)
+        {
+            int trackCount = playlist.TrackPaths?.Count ?? 0;
+            Console.WriteLine($"  - {playlist.Name}: {trackCount} tracks");
+            
+            if (trackCount > maxTrackCount)
+            {
+                maxTrackCount = trackCount;
+                largestPlaylist = playlist;
+            }
+        }
+
+        if (largestPlaylist == null || maxTrackCount == 0)
+        {
+            Console.WriteLine("⚠️ No playlist found with tracks");
+            return;
+        }
+
+        Console.WriteLine($"\n✓ Loading largest playlist: '{largestPlaylist.Name}' with {maxTrackCount} tracks");
+ 
+        _playlist.Clear();
+
+        int loadedCount = 0;
+        int skippedCount = 0;
+        int index = 1;
+ 
+        foreach (var path in largestPlaylist.TrackPaths)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                skippedCount++;
+                continue;
+            }
+
+            if (File.Exists(path))
+            {
+                var track = new TrackModel(path);
+                track.LoadMetadata();
+                track.Index = index++;
+                
+                _playlist.Add(track);
+                loadedCount++;
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ Track not found on disk: {path}");
+                skippedCount++;
+            }
+        }
+
+        Console.WriteLine($"✓ Loaded {loadedCount} tracks from playlist '{largestPlaylist.Name}'");
+        
+        if (skippedCount > 0)
+        {
+            Console.WriteLine($"⚠️ Skipped {skippedCount} tracks (not found on disk)");
+        }
+ 
+        RebuildView();
+
+        if (_playlist.Count > 0)
+        {
+            _index = 0;
+            PlayIndex();
+            Console.WriteLine("✓ Started playing first track");
+        }
+        else
+        {
+            Console.WriteLine("⚠️ No tracks available to play");
+            UpdateQueuePreview();
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"✗ Error loading largest offline playlist: {ex.Message}");
+        Console.WriteLine($"   Stack trace: {ex.StackTrace}");
+    }
+}
+private void AddToQueueContextMenuItem_Click(object? sender, RoutedEventArgs e)
+{
+    if (PlaylistBox.SelectedItem is not TrackModel selectedTrack)
+        return;
+ 
+    if (!_playlist.Contains(selectedTrack))
+    { 
+        _playlist.Add(selectedTrack);
+        SaveTrack(selectedTrack);
+        
+        Console.WriteLine($"✓ Added '{selectedTrack.Title}' to queue");
+        
+        RebuildView();
+        UpdateQueuePreview();
+    }
+    else
+    {
+        Console.WriteLine($"⚠️ '{selectedTrack.Title}' is already in queue");
+    }
+}
+
+private void PlayNextContextMenuItem_Click(object? sender, RoutedEventArgs e)
+{
+    if (PlaylistBox.SelectedItem is not TrackModel selectedTrack)
+        return;
+
+  
+    var actualTrack = _playlist.FirstOrDefault(t => t.Path == selectedTrack.Path);
+    
+    if (actualTrack == null)
+    { 
+        actualTrack = selectedTrack;
+        _playlist.Add(actualTrack);
+        SaveTrack(actualTrack);
+    }
+ 
+    int existingIndex = _playlist.IndexOf(actualTrack);
+    if (existingIndex >= 0 && existingIndex != _index)
+    {
+        _playlist.RemoveAt(existingIndex);
+        if (existingIndex < _index)
+            _index--; 
+    }
+ 
+    int insertPosition = _index + 1;
+    if (insertPosition >= _playlist.Count)
+    {
+        _playlist.Add(actualTrack);
+    }
+    else
+    {
+        _playlist.Insert(insertPosition, actualTrack);
+    }
+
+    Console.WriteLine($"✓ '{actualTrack.Title}' will play next");
+
+    RebuildView();
+    RebuildShuffleQueue();
+    UpdateQueuePreview();
+}
 
     private void UpdateLikedSongsCount()
     {
@@ -316,9 +512,7 @@ public partial class MainWindow : UserControl
             track.ToggleLike();
         
             Console.WriteLine($"IsLiked AFTER: {track.IsLiked}");
-        
-            // ✅ Don't remove/insert - just trigger property change
-            // The binding will update automatically
+         
             UpdateLikedSongsCount();
         
             Console.WriteLine($"{(track.IsLiked ? "♥" : "♡")} {track.Title}");
@@ -353,60 +547,458 @@ public partial class MainWindow : UserControl
         }
     }
     
-    private async void OnPlaylistsButtonClick(object? sender, RoutedEventArgs e)
+ 
+public void AddTrackToQueue(TrackModel track)
+{
+    if (!_playlist.Contains(track))
     {
-        var playlistsWindow = new Window
+        _playlist.Add(track);
+        RebuildView();
+        UpdateQueuePreview();
+        Console.WriteLine($"✓ Added '{track.Title}' to queue");
+    }
+    else
+    {
+        Console.WriteLine($"⚠️ '{track.Title}' is already in queue");
+    }
+}
+
+public void PlayTrackNext(TrackModel track)
+{ 
+    int existingIndex = _playlist.IndexOf(_playlist.FirstOrDefault(t => t.Path == track.Path));
+    if (existingIndex >= 0 && existingIndex != _index)
+    {
+        _playlist.RemoveAt(existingIndex);
+        if (existingIndex < _index)
+            _index--;
+    }
+     
+    int insertPosition = _index + 1;
+    if (insertPosition >= _playlist.Count)
+    {
+        _playlist.Add(track);
+    }
+    else
+    {
+        _playlist.Insert(insertPosition, track);
+    }
+    
+    RebuildView();
+    RebuildShuffleQueue();
+    UpdateQueuePreview();
+    
+    Console.WriteLine($"✓ '{track.Title}' will play next");
+}
+ private async void OnPlaylistsButtonClick(object? sender, RoutedEventArgs e)
+{
+    var playlistsWindow = new Window
+    {
+        Width = 1200,
+        Height = 800,
+        Title = "Your Playlists - Noctune",
+        Background = new SolidColorBrush(Color.Parse("#000000"))
+    };
+
+    void ShowPlaylists()
+    {
+        var playlistsView = new PlaylistsView();
+
+        playlistsView.BackToPlayerRequested += (s, args) =>
         {
-            Width = 1200,
-            Height = 800,
-            Title = "Your Playlists - Noctune",
-            Background = new SolidColorBrush(Color.Parse("#000000"))
+            playlistsWindow.Close();
         };
 
-        void ShowPlaylists()
+        playlistsView.PlaylistSelected += (s, playlistId) =>
         {
-            var playlistsView = new PlaylistsView();
+            var detailView = new PlaylistDetailView(playlistId);
 
-            playlistsView.BackToPlayerRequested += (s, args) =>
+            detailView.BackRequested += (bs, be) =>
             {
+                ShowPlaylists();
+            };
+
+            detailView.PlayAllRequested += (ps, tracks) =>
+            {
+                _playlist.Clear();
+                foreach (var t in tracks)
+                    _playlist.Add(t);
+
+                RebuildView();
+                if (_playlist.Count > 0)
+                {
+                    _index = 0;
+                    PlayIndex();
+                }
                 playlistsWindow.Close();
             };
-
-            playlistsView.PlaylistSelected += (s, playlistId) =>
+ 
+            detailView.AddToQueueRequested += (ds, track) =>
             {
-                var detailView = new PlaylistDetailView(playlistId);
-
-                detailView.BackRequested += (bs, be) =>
-                {
-                    ShowPlaylists();
-                };
-
-                detailView.PlayAllRequested += (ps, tracks) =>
-                {
-                    _playlist.Clear();
-                    foreach (var t in tracks)
-                        _playlist.Add(t);
-
-                    RebuildView();
-                    if (_playlist.Count > 0)
-                    {
-                        _index = 0;
-                        PlayIndex();
-                    }
-                    playlistsWindow.Close();
-                };
-
-                playlistsWindow.Content = detailView;
+                AddTrackToQueue(track);
+            };
+ 
+            detailView.PlayNextRequested += (ds, track) =>
+            {
+                PlayTrackNext(track);
             };
 
-            playlistsWindow.Content = playlistsView;
-        }
+            playlistsWindow.Content = detailView;
+        };
 
-        ShowPlaylists();
-
-        await playlistsWindow.ShowDialog((Window)VisualRoot!);
+        playlistsWindow.Content = playlistsView;
     }
+
+    ShowPlaylists();
+
+    await playlistsWindow.ShowDialog((Window)VisualRoot!);
+}
    
+private void OnResponsivePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+{
+    if (e.Property == BoundsProperty)
+    {
+        UpdateResponsiveLayout();
+    }
+}
+
+private void UpdateResponsiveLayout()
+{
+    var bounds = this.Bounds;
+    _currentWidth = bounds.Width;
+    _currentHeight = bounds.Height;
+ 
+    if (_currentWidth < SMALL_SCREEN)
+    {
+        ApplySmallScreenLayout();
+    }
+    else if (_currentWidth < MEDIUM_SCREEN)
+    {
+        ApplyMediumScreenLayout();
+    }
+    else if (_currentWidth < LARGE_SCREEN)
+    {
+        ApplyLargeScreenLayout();
+    }
+    else
+    {
+        ApplyFullScreenLayout();
+    }
+}
+ 
+private void ApplySmallScreenLayout()
+{
+    var sidebar = this.FindControl<Border>("SidebarPanel");
+    if (sidebar != null)
+    {
+        sidebar.IsVisible = false;
+        sidebar.Tag = "Collapsed";
+    }
+
+    var lyrics = this.FindControl<Border>("LyricsPanelContainer");
+    if (lyrics != null)
+    {
+        lyrics.IsVisible = false;
+        lyrics.Tag = "Collapsed";
+    }
+
+    var hamburger = this.FindControl<Button>("HamburgerButton");
+    if (hamburger != null)
+    {
+        hamburger.IsVisible = true;
+    }
+
+    var mobileLyrics = this.FindControl<Button>("MobileLyricsButton");
+    if (mobileLyrics != null)
+    {
+        mobileLyrics.IsVisible = true;
+    }
+
+    var mainGrid = this.FindControl<Grid>("MainContentGrid");
+    if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+    {
+        mainGrid.ColumnDefinitions[0].Width = new GridLength(0);
+        mainGrid.ColumnDefinitions[2].Width = new GridLength(0);
+    }
+
+    var nowPlaying = this.FindControl<Grid>("NowPlayingSection");
+    var coverContainer = this.FindControl<Grid>("MiniCoverContainer");
+    var trackInfo = this.FindControl<StackPanel>("TrackInfoPanel");
+    
+    if (nowPlaying != null && coverContainer != null && trackInfo != null)
+    {
+        nowPlaying.RowDefinitions.Clear();
+        nowPlaying.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        nowPlaying.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        
+        Grid.SetRow(coverContainer, 0);
+        Grid.SetColumn(coverContainer, 0);
+        Grid.SetColumnSpan(coverContainer, 2);
+        coverContainer.Width = 140;
+        coverContainer.Height = 140;
+        coverContainer.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        
+        Grid.SetRow(trackInfo, 1);
+        Grid.SetColumn(trackInfo, 0);
+        Grid.SetColumnSpan(trackInfo, 2);
+        trackInfo.Margin = new Thickness(0, 20, 0, 0);
+        trackInfo.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        
+        if (TrackLabel != null) TrackLabel.FontSize = 22;
+        if (ArtistLabel != null) ArtistLabel.FontSize = 14;
+        if (AlbumLabel != null) AlbumLabel.FontSize = 12;
+    }
+
+    var centerControls = this.FindControl<StackPanel>("CenterControls");
+    if (centerControls != null)
+    {
+        centerControls.Spacing = 6;
+    }
+
+    var playbackBar = this.FindControl<Border>("PlaybackBar");
+    if (playbackBar != null)
+    {
+        playbackBar.Padding = new Thickness(12, 10);
+    }
+
+    if (_currentWidth < 700)
+    {
+        var volume = this.FindControl<StackPanel>("VolumeControls");
+        if (volume != null)
+        {
+            volume.IsVisible = false;
+        }
+    }
+
+    var mainContent = this.FindControl<Grid>("MainContentArea");
+    if (mainContent != null)
+    {
+        mainContent.Margin = new Thickness(12, 12, 12, 12);
+    }
+
+    if (SearchBox != null)
+    {
+        SearchBox.MaxWidth = double.PositiveInfinity;
+        SearchBox.Width = double.NaN;
+    }
+}
+private void ApplyMediumScreenLayout()
+{ 
+    var sidebar = this.FindControl<Border>("SidebarPanel");
+    if (sidebar != null)
+    {
+        sidebar.IsVisible = true;
+        sidebar.Tag = null;
+    }
+
+    var lyrics = this.FindControl<Border>("LyricsPanelContainer");
+    if (lyrics != null)
+    {
+        lyrics.IsVisible = false;
+        lyrics.Tag = "Collapsed";
+    }
+ 
+    var hamburger = this.FindControl<Button>("HamburgerButton");
+    if (hamburger != null)
+    {
+        hamburger.IsVisible = false;
+    }
+ 
+    var mobileLyrics = this.FindControl<Button>("MobileLyricsButton");
+    if (mobileLyrics != null)
+    {
+        mobileLyrics.IsVisible = false;
+    } 
+    var mainGrid = this.FindControl<Grid>("MainContentGrid");
+    if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+    {
+        mainGrid.ColumnDefinitions[0].Width = GridLength.Auto; 
+        mainGrid.ColumnDefinitions[2].Width = new GridLength(0);  
+    }
+
+    ResetNowPlayingLayout();
+    ResetDefaultSizes();
+ 
+    var volume = this.FindControl<StackPanel>("VolumeControls");
+    if (volume != null)
+    {
+        volume.IsVisible = true;
+    }
+}
+
+private void ApplyLargeScreenLayout()
+{ 
+    var sidebar = this.FindControl<Border>("SidebarPanel");
+    if (sidebar != null)
+    {
+        sidebar.IsVisible = true;
+        sidebar.Tag = null;
+    }
+
+    var lyrics = this.FindControl<Border>("LyricsPanelContainer");
+    if (lyrics != null)
+    {
+        lyrics.IsVisible = false;
+        lyrics.Tag = "Collapsed";
+    }
+ 
+    var mainGrid = this.FindControl<Grid>("MainContentGrid");
+    if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+    {
+        mainGrid.ColumnDefinitions[0].Width = GridLength.Auto;  
+        mainGrid.ColumnDefinitions[2].Width = new GridLength(0);  
+    }
+
+    ResetDefaultLayout();
+}
+
+private void ApplyFullScreenLayout()
+{ 
+    var sidebar = this.FindControl<Border>("SidebarPanel");
+    if (sidebar != null)
+    {
+        sidebar.IsVisible = true;
+        sidebar.Tag = null;
+    }
+
+    var lyrics = this.FindControl<Border>("LyricsPanelContainer");
+    if (lyrics != null)
+    {
+        lyrics.IsVisible = true;
+        lyrics.Tag = null;
+    }
+ 
+    var mainGrid = this.FindControl<Grid>("MainContentGrid");
+    if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+    {
+        mainGrid.ColumnDefinitions[0].Width = GridLength.Auto; 
+        mainGrid.ColumnDefinitions[2].Width = new GridLength(380);  
+    }
+
+    ResetDefaultLayout();
+}
+
+private void ResetDefaultLayout()
+{
+    var hamburger = this.FindControl<Button>("HamburgerButton");
+    if (hamburger != null)
+    {
+        hamburger.IsVisible = false;
+    }
+
+    var mobileLyrics = this.FindControl<Button>("MobileLyricsButton");
+    if (mobileLyrics != null)
+    {
+        mobileLyrics.IsVisible = false;
+    }
+
+    ResetNowPlayingLayout();
+    ResetDefaultSizes();
+
+    var volume = this.FindControl<StackPanel>("VolumeControls");
+    if (volume != null)
+    {
+        volume.IsVisible = true;
+    }
+
+    var centerControls = this.FindControl<StackPanel>("CenterControls");
+    if (centerControls != null)
+    {
+        centerControls.Spacing = 8;
+    }
+
+    var playbackBar = this.FindControl<Border>("PlaybackBar");
+    if (playbackBar != null)
+    {
+        playbackBar.Padding = new Thickness(20, 12);
+    }
+
+    var mainContent = this.FindControl<Grid>("MainContentArea");
+    if (mainContent != null)
+    {
+        mainContent.Margin = new Thickness(16, 16, 16, 16);
+    }
+
+    if (SearchBox != null)
+    {
+        SearchBox.MaxWidth = 500;
+        SearchBox.Width = 350;
+    }
+}
+
+private void ResetNowPlayingLayout()
+{
+    var nowPlaying = this.FindControl<Grid>("NowPlayingSection");
+    var coverContainer = this.FindControl<Grid>("MiniCoverContainer");
+    var trackInfo = this.FindControl<StackPanel>("TrackInfoPanel");
+    
+    if (nowPlaying != null && coverContainer != null && trackInfo != null)
+    {
+        nowPlaying.RowDefinitions.Clear();
+        
+        Grid.SetRow(coverContainer, 0);
+        Grid.SetColumn(coverContainer, 0);
+        Grid.SetColumnSpan(coverContainer, 1);
+        coverContainer.Width = 180;
+        coverContainer.Height = 180;
+        coverContainer.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+        
+        Grid.SetRow(trackInfo, 0);
+        Grid.SetColumn(trackInfo, 1);
+        Grid.SetColumnSpan(trackInfo, 1);
+        trackInfo.Margin = new Thickness(30, 0, 0, 0);
+        trackInfo.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+    }
+}
+private void ResetDefaultSizes()
+{
+    if (TrackLabel != null) TrackLabel.FontSize = 28;
+    if (ArtistLabel != null) ArtistLabel.FontSize = 16;
+    if (AlbumLabel != null) AlbumLabel.FontSize = 13;
+}
+
+private void OnHamburgerClick(object? sender, RoutedEventArgs e)
+{
+    var sidebar = this.FindControl<Border>("SidebarPanel");
+    if (sidebar != null)
+    {
+        sidebar.IsVisible = !sidebar.IsVisible;
+         
+        var mainGrid = this.FindControl<Grid>("MainContentGrid");
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 1)
+        {
+            mainGrid.ColumnDefinitions[0].Width = sidebar.IsVisible ? GridLength.Auto : new GridLength(0);
+        }
+    }
+}
+
+private void OnMobileLyricsClick(object? sender, RoutedEventArgs e)
+{ 
+    var lyrics = this.FindControl<Border>("LyricsPanelContainer");
+    if (lyrics != null)
+    {
+        lyrics.IsVisible = !lyrics.IsVisible;
+         
+        var mainGrid = this.FindControl<Grid>("MainContentGrid");
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+        {
+            mainGrid.ColumnDefinitions[2].Width = lyrics.IsVisible ? new GridLength(380) : new GridLength(0);
+        }
+            if (lyrics.IsVisible && _currentWidth < MEDIUM_SCREEN)
+        {
+            var sidebar = this.FindControl<Border>("SidebarPanel");
+            if (sidebar != null)
+            {
+                sidebar.IsVisible = false;
+                if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 1)
+                {
+                    mainGrid.ColumnDefinitions[0].Width = new GridLength(0);
+                }
+            }
+        }
+    }
+}
+
+
     
     private void LoadLikedSongsPlaylist()
     {
@@ -524,14 +1116,10 @@ public partial class MainWindow : UserControl
             using var stream = await file.OpenReadAsync();
             using var reader = new StreamReader(stream);
             string lyricsContent = await reader.ReadToEndAsync();
-
-            // ✅ This automatically saves to LyricsService via Track.LyricsData setter
-            selectedTrack.LyricsData = lyricsContent;
+  selectedTrack.LyricsData = lyricsContent;
 
             Console.WriteLine($"✓ Uploaded lyrics for: {selectedTrack.Title}");
-
-            // ✅ Update display if this is the current track
-            if (_currentTrack != null && _currentTrack.Path == selectedTrack.Path)
+  if (_currentTrack != null && _currentTrack.Path == selectedTrack.Path)
             {
                 _lyricsDisplay?.SetCurrentTrack(selectedTrack);
             }
@@ -659,9 +1247,7 @@ public partial class MainWindow : UserControl
 
         _currentTrack = t;
     
-        // ✅ NEW: Set the current track in LyricsDisplay
-        // This automatically loads lyrics from LyricsService
-        _lyricsDisplay?.SetCurrentTrack(t);
+      _lyricsDisplay?.SetCurrentTrack(t);
 
         _currentTrackStartTime = DateTime.Now;
         _lastKnownPosition = 0;
@@ -793,84 +1379,117 @@ public partial class MainWindow : UserControl
         }
     }
 
-    private async void AddToPlaylist(object? sender, RoutedEventArgs e)
+  private async void AddToPlaylist(object? sender, RoutedEventArgs e)
+{
+    if (PlaylistBox.SelectedItem is not TrackModel currentTrack)
     {
-        if (PlaylistBox.SelectedItem is not TrackModel currentTrack)
-            return;
-
-        if (string.IsNullOrEmpty(_token))
-            return;
-
-        var dialog = new Window
-        {
-            Width = 400,
-            Height = 500,
-            Title = "Add to Playlist",
-            Background = new SolidColorBrush(Color.Parse("#121212")),
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-
-        var playlistsList = new ListBox
-        {
-            Background = new SolidColorBrush(Color.Parse("#181818")),
-            Margin = new Thickness(16)
-        };
-
-        try
-        {
-            var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", _token);
-
-            var response = await httpClient.GetAsync($"{ApiConfig.BaseUrl}/playlists");
-            if (response.IsSuccessStatusCode)
-            {
-                var playlists = await response.Content.ReadFromJsonAsync<List<PlaylistApiItem>>();
-                if (playlists != null)
-                    playlistsList.ItemsSource = playlists;
-            }
-        }
-        catch
-        {
-        }
-
-        playlistsList.SelectionChanged += async (s, args) =>
-        {
-            if (playlistsList.SelectedItem is PlaylistApiItem selectedPlaylist)
-            {
-                if (string.IsNullOrWhiteSpace(selectedPlaylist.Id))
-                {
-                    dialog.Close();
-                    return;
-                }
-
-                try
-                {
-                    var httpClient = new HttpClient();
-                    httpClient.DefaultRequestHeaders.Authorization =
-                        new AuthenticationHeaderValue("Bearer", _token);
-
-                    var payload = new { TrackPath = currentTrack.Path };
-                    var json = System.Text.Json.JsonSerializer.Serialize(payload);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    await httpClient.PostAsync(
-                        $"{ApiConfig.BaseUrl}/playlists/{selectedPlaylist.Id}/tracks",
-                        content);
-
-                    dialog.Close();
-                }
-                catch
-                {
-                    dialog.Close();
-                }
-            }
-        };
-
-        dialog.Content = playlistsList;
-        await dialog.ShowDialog((Window)VisualRoot!);
+        Console.WriteLine("⚠️ No track selected");
+        return;
     }
 
+    if (string.IsNullOrEmpty(_token))
+    {
+        Console.WriteLine("⚠️ No authentication token available");
+        return;
+    }
+
+    var dialog = new Window
+    {
+        Width = 400,
+        Height = 500,
+        Title = "Add to Playlist",
+        Background = new SolidColorBrush(Color.Parse("#121212")),
+        WindowStartupLocation = WindowStartupLocation.CenterOwner
+    };
+
+    var playlistsList = new ListBox
+    {
+        Background = new SolidColorBrush(Color.Parse("#181818")),
+        Margin = new Thickness(16)
+    };
+
+    try
+    {
+        var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _token);
+
+        var response = await httpClient.GetAsync($"{ApiConfig.BaseUrl}/playlists");
+        if (response.IsSuccessStatusCode)
+        {
+            var playlists = await response.Content.ReadFromJsonAsync<List<PlaylistApiItem>>();
+            if (playlists != null)
+            {
+                playlistsList.ItemsSource = playlists;
+                Console.WriteLine($"✓ Loaded {playlists.Count} playlists");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"⚠️ Failed to load playlists: {response.StatusCode}");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"✗ Error loading playlists: {ex.Message}");
+    }
+
+    playlistsList.SelectionChanged += async (s, args) =>
+    {
+        if (playlistsList.SelectedItem is PlaylistApiItem selectedPlaylist)
+        {
+            if (string.IsNullOrWhiteSpace(selectedPlaylist.Id))
+            {
+                Console.WriteLine("⚠️ Invalid playlist ID");
+                dialog.Close();
+                return;
+            }
+
+            try
+            {
+                var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", _token);
+
+                var payload = new { TrackPath = currentTrack.Path };
+                var json = System.Text.Json.JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await httpClient.PostAsync(
+                    $"{ApiConfig.BaseUrl}/playlists/{selectedPlaylist.Id}/tracks",
+                    content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"✓ Added '{currentTrack.Title}' to playlist '{selectedPlaylist.Name}'");
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ Failed to add track: {response.StatusCode}");
+                }
+
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"✗ Error adding track to playlist: {ex.Message}");
+                dialog.Close();
+            }
+        }
+    };
+
+    dialog.Content = playlistsList;
+    
+    var topLevel = TopLevel.GetTopLevel(this);
+    if (topLevel is Window parentWindow)
+    {
+        await dialog.ShowDialog(parentWindow);
+    }
+    else
+    {
+        dialog.Show();
+    }
+}
     void PlayPause(object? s, RoutedEventArgs e)
     {
         if (_isTogglingPlay)
@@ -1390,9 +2009,69 @@ private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
     void PlayContextMenuItem_Click(object? sender, RoutedEventArgs e)
         => PlaylistDouble(null, e);
 
-    void RemoveContextMenuItem_Click(object? sender, RoutedEventArgs e)
-        => RemoveClicked(null, e);
+    private void RemoveContextMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        if (PlaylistBox.SelectedItem is not TrackModel track)
+        {
+            Console.WriteLine("⚠️ No track selected for removal");
+            return;
+        }
 
+        int i = _playlist.IndexOf(track);
+        if (i < 0)
+        {
+            Console.WriteLine($"⚠️ Track '{track.Title}' not found in playlist");
+            return;
+        }
+
+        Console.WriteLine($"🗑️ Removing '{track.Title}' from playlist");
+ 
+        _playlist.RemoveAt(i);
+
+           DeleteTrackFromDatabase(track);
+
+        if (i == _index)
+        {
+            _mp.Stop();
+            _index = -1;
+
+            if (_playlist.Count > 0)
+            {
+                _index = 0;
+                RebuildView();
+                PlayIndex();
+                Console.WriteLine($"✓ Removed and playing next track");
+                return;
+            }
+            else
+            {
+                Console.WriteLine("⚠️ Playlist is now empty");
+            }
+        }
+        else if (i < _index)
+        {
+            _index--;
+        }
+
+        RebuildView();
+        UpdateQueuePreview();
+        Console.WriteLine($"✓ Track removed successfully");
+    }
+
+    private void DeleteTrackFromDatabase(TrackModel track)
+    {
+        try
+        {
+            using var db = new LiteDatabase(GetTrackDbPath());
+            var tracks = db.GetCollection<TrackModel>("tracks");
+            tracks.Delete(track.Id);
+            Console.WriteLine($"✓ Deleted '{track.Title}' from database");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error deleting track from database: {ex.Message}");
+        }
+    }
     void OpenFolderContextMenuItem_Click(object? sender, RoutedEventArgs e)
     {
         if (PlaylistBox.SelectedItem is not TrackModel t)
@@ -1661,8 +2340,7 @@ private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
             if (existing != null)
             {
                 track.Id = existing.Id;
-                // Don't include LyricsData in the track database
-                // Lyrics are stored separately in LyricsService
+         
                 tracks.Update(track);
             }
             else
@@ -1863,3 +2541,5 @@ private List<LyricsLine> ParseLyricsForFullscreen(string lrcContent)
         StatsService.SaveListeningSessions(_listeningSessions);
     }
 }
+
+

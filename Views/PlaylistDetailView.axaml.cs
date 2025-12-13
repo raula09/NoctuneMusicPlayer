@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -18,7 +19,6 @@ namespace MusicPlayerApp.Views;
 public partial class PlaylistDetailView : UserControl
 {
     private readonly OfflinePlaylistService _offline = new();
-private bool LastPointerWasRightClick = false;
 
     private readonly ObservableCollection<Track> _tracks = new();
     private PlaylistDto? _playlist;
@@ -26,6 +26,8 @@ private bool LastPointerWasRightClick = false;
 
     public event EventHandler? BackRequested;
     public event EventHandler<List<Track>>? PlayAllRequested;
+    public event EventHandler<Track>? AddToQueueRequested;
+    public event EventHandler<Track>? PlayNextRequested;
 
     public PlaylistDetailView(string playlistId)
     {
@@ -33,17 +35,8 @@ private bool LastPointerWasRightClick = false;
 
         InitializeComponent();
         LoadControls();
-TracksListBox.PointerPressed += (s, e) =>
-{
-    if (e.GetCurrentPoint(TracksListBox).Properties.IsRightButtonPressed)
-    {
-        var item = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>();
-        if (item != null)
-        {
-            TracksListBox.SelectedItem = item.DataContext;
-        }
-    }
-};
+ 
+        TracksListBox.AddHandler(PointerPressedEvent, OnTracksListBoxPointerPressed, RoutingStrategies.Tunnel);
 
         TracksListBox.ItemsSource = _tracks;
 
@@ -54,6 +47,8 @@ TracksListBox.PointerPressed += (s, e) =>
 
         PlayTrackMenuItem.Click += OnPlayTrackClick;
         RemoveTrackMenuItem.Click += OnRemoveTrackClick;
+        AddToQueueMenuItem.Click += OnAddToQueueClick;
+        PlayNextMenuItem.Click += OnPlayNextClick;
 
         Loaded += async (_, _) => await LoadPlaylistAsync();
     }
@@ -70,15 +65,30 @@ TracksListBox.PointerPressed += (s, e) =>
 
         PlayTrackMenuItem = this.FindControl<MenuItem>("PlayTrackMenuItem");
         RemoveTrackMenuItem = this.FindControl<MenuItem>("RemoveTrackMenuItem");
+        AddToQueueMenuItem = this.FindControl<MenuItem>("AddToQueueMenuItem");
+        PlayNextMenuItem = this.FindControl<MenuItem>("PlayNextMenuItem");
 
         PlaylistNameText = this.FindControl<TextBlock>("PlaylistNameText");
         PlaylistDescText = this.FindControl<TextBlock>("PlaylistDescText");
         PlaylistInfoText = this.FindControl<TextBlock>("PlaylistInfoText");
     }
-
-    // ---------------------------------
-    // LOAD PLAYLIST (Offline)
-    // ---------------------------------
+ 
+    private void OnTracksListBoxPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(TracksListBox);
+        
+        if (point.Properties.IsRightButtonPressed)
+        { 
+            var visual = e.Source as Visual;
+            var listBoxItem = visual?.FindAncestorOfType<ListBoxItem>();
+            
+            if (listBoxItem?.DataContext is Track track)
+            { TracksListBox.SelectedItem = track;
+                e.Handled = true;
+            }
+        }
+    }
+ 
     private Task LoadPlaylistAsync()
     {
         _playlist = _offline.GetPlaylists().FirstOrDefault(x => x.Id == _playlistId);
@@ -100,26 +110,17 @@ TracksListBox.PointerPressed += (s, e) =>
 
         return Task.CompletedTask;
     }
-
-    // ---------------------------------
-    // BUTTON: Back
-    // ---------------------------------
+ 
     private void OnBackClick(object? sender, RoutedEventArgs e)
     {
         BackRequested?.Invoke(this, EventArgs.Empty);
     }
-
-    // ---------------------------------
-    // BUTTON: Play All
-    // ---------------------------------
+ 
     private void OnPlayAllClick(object? sender, RoutedEventArgs e)
     {
         PlayAllRequested?.Invoke(this, _tracks.ToList());
     }
-
-    // ---------------------------------
-    // BUTTON: Add Tracks
-    // ---------------------------------
+ 
     private async void OnAddTracksClick(object? sender, RoutedEventArgs e)
     {
         var top = TopLevel.GetTopLevel(this);
@@ -142,25 +143,35 @@ TracksListBox.PointerPressed += (s, e) =>
 
         await LoadPlaylistAsync();
     }
-
-    // ---------------------------------
-    // MENU: Play selected track
-    // ---------------------------------
+ 
     private void OnPlayTrackClick(object? sender, RoutedEventArgs e)
     {
         if (TracksListBox.SelectedItem is Track track)
             PlayAllRequested?.Invoke(this, new List<Track> { track });
     }
-
-    // ---------------------------------
-    // MENU: Remove selected track
-    // ---------------------------------
+ 
     private async void OnRemoveTrackClick(object? sender, RoutedEventArgs e)
     {
         if (TracksListBox.SelectedItem is Track track)
         {
             _offline.RemoveTrack(_playlistId, track.Path);
             await LoadPlaylistAsync();
+        }
+    }
+ 
+    private void OnAddToQueueClick(object? sender, RoutedEventArgs e)
+    {
+        if (TracksListBox.SelectedItem is Track track)
+        {
+            AddToQueueRequested?.Invoke(this, track);
+        }
+    }
+ 
+    private void OnPlayNextClick(object? sender, RoutedEventArgs e)
+    {
+        if (TracksListBox.SelectedItem is Track track)
+        {
+            PlayNextRequested?.Invoke(this, track);
         }
     }
 
@@ -172,10 +183,7 @@ TracksListBox.PointerPressed += (s, e) =>
             await LoadPlaylistAsync();
         }
     }
-
-    // ---------------------------------
-    // BUTTON: Edit Playlist (Name + Desc)
-    // ---------------------------------
+ 
     private async void OnEditClick(object? sender, RoutedEventArgs e)
     {
         if (_playlist == null)

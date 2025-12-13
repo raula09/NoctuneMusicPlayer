@@ -1,57 +1,103 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="MusicPlayerApp.LyricsDisplay"
-             Background="#000000">
+             Background="Transparent">
   
-    <Border CornerRadius="12"
-            Background="#0A0A0A"
-            Padding="24">
-    
-        <Grid RowDefinitions="Auto,*">
+    <Grid>
+        <!-- Background gradient overlay -->
+        <Border>
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#00000000" Offset="0"/>
+                    <GradientStop Color="#DD000000" Offset="0.3"/>
+                    <GradientStop Color="#DD000000" Offset="0.7"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <Grid RowDefinitions="Auto,*,Auto">
       
+            <!-- Header with upload button -->
             <StackPanel Name="HeaderPanel"
                         Grid.Row="0" 
-                        Spacing="8"
-                        Margin="0,0,0,24"
+                        Spacing="16"
+                        Margin="0,40,0,20"
                         IsVisible="True">
-                <TextBlock Text="Lyrics"
-                           FontSize="24"
-                           FontWeight="Bold"
-                           Foreground="#FFFFFF"
-                           HorizontalAlignment="Center"/>
-        
+                        
                 <Button Name="LoadLyricsButton"
-                        Content="Load Lyrics File (.lrc)"
-                        Background="#1DB954"
+                        Content="Upload Lyrics"
+                        Background="#FFFFFF"
                         Foreground="#000000"
-                        Padding="16,8"
-                        CornerRadius="20"
+                        Padding="24,12"
+                        CornerRadius="24"
                         HorizontalAlignment="Center"
-                        FontSize="13"
+                        FontSize="14"
                         FontWeight="SemiBold"
-                        Click="LoadLyricsButton_Click"/>
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="LoadLyricsButton_Click">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#F0F0F0"/>
+                        </Style>
+                        <Style Selector="Button:pressed">
+                            <Setter Property="Background" Value="#E0E0E0"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
             </StackPanel>
 
-            <ScrollViewer Name="LyricsScrollViewer"
-                          Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          AllowAutoHide="True">
+            <!-- Lyrics scroll viewer with fade effects -->
+            <Grid Grid.Row="1">
+                <!-- Top fade -->
+                <Border Height="120" 
+                        VerticalAlignment="Top"
+                        IsHitTestVisible="False"
+                        ZIndex="10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                            <GradientStop Color="#FF000000" Offset="0"/>
+                            <GradientStop Color="#00000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <!-- Bottom fade -->
+                <Border Height="120" 
+                        VerticalAlignment="Bottom"
+                        IsHitTestVisible="False"
+                        ZIndex="10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                            <GradientStop Color="#00000000" Offset="0"/>
+                            <GradientStop Color="#FF000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <ScrollViewer Name="LyricsScrollViewer"
+                              VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Disabled">
         
-                <StackPanel Name="LyricsPanel"
-                            Margin="0,60,0,60">
+                    <StackPanel Name="LyricsPanel"
+                                Margin="32,0">
         
-                    <TextBlock Text="No lyrics loaded"
-                               FontSize="16"
-                               Foreground="#6A6A6A"
-                               HorizontalAlignment="Center"
-                               Margin="0,40"/>
-                </StackPanel>
+                        <TextBlock Text="No lyrics available&#x0a;&#x0a;Click 'Upload Lyrics' to add synchronized lyrics"
+                                   FontSize="16"
+                                   Foreground="#6A6A6A"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Margin="0,100,0,0"
+                                   LineHeight="24"/>
+                    </StackPanel>
         
-            </ScrollViewer>
+                </ScrollViewer>
+            </Grid>
+ 
+            <Border Grid.Row="2" Height="40"/>
       
         </Grid>
-    
-    </Border>
+    </Grid>
   
 </UserControl>

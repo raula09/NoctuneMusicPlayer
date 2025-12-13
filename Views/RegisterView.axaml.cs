@@ -40,8 +40,7 @@ public partial class RegisterView : UserControl
 
         _registeredEmail = email;
         _registeredPassword = password;
-        
-        // Show verification UI
+         
         CredentialsPanel.IsVisible = false;
         VerificationPanel.IsVisible = true;
         VerifyButton.IsVisible = true;
@@ -64,8 +63,7 @@ public partial class RegisterView : UserControl
             await ShowMessageAsync($"Verification failed: {message}");
             return;
         }
-
-        // Auto-login after successful verification
+ 
         var token = await _authService.LoginAsync(_registeredEmail, _registeredPassword);
         if (token != null)
         {

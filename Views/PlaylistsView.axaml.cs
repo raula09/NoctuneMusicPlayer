@@ -46,10 +46,7 @@ public partial class PlaylistsView : UserControl
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-    // -------------------------
-    // LOAD PLAYLISTS
-    // -------------------------
+ 
     private Task LoadPlaylistsAsync()
     {
         _playlists.Clear();
@@ -69,19 +66,13 @@ public partial class PlaylistsView : UserControl
         ForceCreateOverlay.IsVisible = true;
         ForceNameBox.Focus();
     }
-
-    // -------------------------
-    // FORCE CREATE PLAYLIST UI
-    // -------------------------
+ 
     private async void ForceCreateButton_Click(object? sender, RoutedEventArgs e)
     {
         await CreatePlaylistInternal(ForceNameBox.Text, ForceDescBox.Text);
         ForceCreateOverlay.IsVisible = false;
     }
-
-    // -------------------------
-    // NEW PLAYLIST WINDOW
-    // -------------------------
+ 
     private async void OnCreatePlaylistClick(object? sender, RoutedEventArgs e)
     {
         var dialog = new Window
@@ -133,10 +124,7 @@ public partial class PlaylistsView : UserControl
 
         await dialog.ShowDialog((Window)VisualRoot!);
     }
-
-    // -------------------------
-    // CREATE OFFLINE PLAYLIST
-    // -------------------------
+ 
     private async Task CreatePlaylistInternal(string? name, string? desc)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -157,25 +145,16 @@ public partial class PlaylistsView : UserControl
 
         await LoadPlaylistsAsync();
     }
-
-    // -------------------------
-    // REFRESH
-    // -------------------------
+ 
     private async void OnRefreshClick(object? sender, RoutedEventArgs e)
         => await LoadPlaylistsAsync();
-
-    // -------------------------
-    // OPEN PLAYLIST
-    // -------------------------
+ 
     public void OnOpenPlaylistClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string id)
             PlaylistSelected?.Invoke(this, id);
     }
-
-    // -------------------------
-    // DELETE PLAYLIST
-    // -------------------------
+ 
     public async void OnDeletePlaylistClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string id)

@@ -5,12 +5,13 @@
              xmlns:local="using:MusicPlayerApp"
              xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
              x:Class="MusicPlayerApp.MainWindow"
-             Background="#000000"
+             x:DataType="local:MainWindow"
+             Background="#050505"
              DragDrop.AllowDrop="True"
              HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch"
-             MinWidth="900"
-             MinHeight="600">
+             MinWidth="600"
+             MinHeight="400">
 
   <UserControl.Resources>
     <conv:BooleanToBrushConverter x:Key="FavBrush" />
@@ -18,9 +19,21 @@
     
     <DataTemplate x:Key="WaveAnimationTemplate">
       <StackPanel Orientation="Horizontal" Spacing="2">
-        <Border Width="3" Height="8" Background="#1DB954" CornerRadius="2"/>
-        <Border Width="3" Height="12" Background="#1DB954" CornerRadius="2"/>
-        <Border Width="3" Height="6" Background="#1DB954" CornerRadius="2"/>
+        <Border Width="3" Height="10" Background="#1DB954" CornerRadius="1.5">
+          <Border.RenderTransform>
+            <ScaleTransform ScaleY="1"/>
+          </Border.RenderTransform>
+        </Border>
+        <Border Width="3" Height="14" Background="#1DB954" CornerRadius="1.5">
+          <Border.RenderTransform>
+            <ScaleTransform ScaleY="1"/>
+          </Border.RenderTransform>
+        </Border>
+        <Border Width="3" Height="8" Background="#1DB954" CornerRadius="1.5">
+          <Border.RenderTransform>
+            <ScaleTransform ScaleY="1"/>
+          </Border.RenderTransform>
+        </Border>
       </StackPanel>
     </DataTemplate>
   </UserControl.Resources>
@@ -31,30 +44,48 @@
       <Setter Property="FontSize" Value="13"/>
     </Style>
 
+    <!-- Optimized Button Styles - Reduced transition complexity -->
     <Style Selector="Button">
-      <Setter Property="Background" Value="#282828"/>
+      <Setter Property="Background" Value="#1C1C1C"/>
       <Setter Property="Foreground" Value="#FFFFFF"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="8,6"/>
-      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="14,10"/>
+      <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="RenderTransform" Value="scale(1)"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Button:pointerover">
-      <Setter Property="Background" Value="#3E3E3E"/>
+      <Setter Property="Background" Value="#262626"/>
+    </Style>
+
+    <Style Selector="Button:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.97)"/>
     </Style>
 
     <Style Selector="ToggleButton">
-      <Setter Property="Background" Value="#282828"/>
+      <Setter Property="Background" Value="#1C1C1C"/>
       <Setter Property="Foreground" Value="#B3B3B3"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="6,4"/>
-      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="ToggleButton:pointerover">
-      <Setter Property="Background" Value="#3E3E3E"/>
+      <Setter Property="Background" Value="#262626"/>
       <Setter Property="Foreground" Value="#FFFFFF"/>
     </Style>
 
@@ -67,17 +98,32 @@
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Padding" Value="8"/>
-      <Setter Property="CornerRadius" Value="20"/>
+      <Setter Property="Padding" Value="10"/>
+      <Setter Property="CornerRadius" Value="50"/>
       <Setter Property="Focusable" Value="False"/>
+      <Setter Property="RenderTransform" Value="scale(1)"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
     </Style>
     
     <Style Selector="Button.icon:pointerover">
-      <Setter Property="Background" Value="#282828"/>
+      <Setter Property="Background" Value="#1C1C1C"/>
+    </Style>
+
+    <Style Selector="Button.icon:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.95)"/>
     </Style>
 
     <Style Selector="Button.icon Image, ToggleButton Image">
-      <Setter Property="Opacity" Value="0.7"/>
+      <Setter Property="Opacity" Value="0.65"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Button.icon:pointerover Image, ToggleButton:pointerover Image">
@@ -88,45 +134,44 @@
       <Setter Property="Opacity" Value="1"/>
     </Style>
 
+    <!-- Optimized ListBoxItem - Removed unnecessary transitions -->
     <Style Selector="ListBoxItem">
-      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Padding" Value="16,8"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Margin" Value="0,1"/>
+      <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="FocusAdorner" Value="{x:Null}"/>
     </Style>
 
     <Style Selector="ListBoxItem:pointerover">
-      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="Background" Value="#121212"/>
     </Style>
 
     <Style Selector="ListBoxItem:selected">
-      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Background" Value="#181818"/>
       <Setter Property="BorderThickness" Value="0"/>
     </Style>
 
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Background" Value="#181818"/>
     </Style>
 
     <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter">
-      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Background" Value="#181818"/>
     </Style>
 
     <Style Selector="ListBoxItem:selected:pointerover">
-      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="Background" Value="#1C1C1C"/>
     </Style>
 
     <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="Background" Value="#1C1C1C"/>
     </Style>
 
     <Style Selector="ListBoxItem:focus">
       <Setter Property="Background" Value="Transparent"/>
-    </Style>
-
-    <Style Selector="ListBoxItem">
-      <Setter Property="FocusAdorner" Value="{x:Null}"/>
     </Style>
 
   </UserControl.Styles>
@@ -136,15 +181,19 @@
 <DataTemplate DataType="models:Track">
   <Border Background="Transparent"
           Padding="0,6"
-          CornerRadius="6">
-    <Grid ColumnDefinitions="40,40,*,220,130,60,40">
+          CornerRadius="8"
+          ClipToBounds="False">
+    <Grid ColumnDefinitions="50,56,*,200,120,70,50">
+      
+      <!-- Index/Wave -->
       <Grid Grid.Column="0">
         <TextBlock Name="TrackIndexText"
                    Text="{Binding Index}"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
-                   Foreground="#6A6A6A"
-                   FontSize="13"/>
+                   Foreground="#535353"
+                   FontSize="14"
+                   FontWeight="Medium"/>
 
         <ContentControl Name="WaveIcon"
                         Content="{StaticResource WaveAnimationTemplate}"
@@ -153,61 +202,66 @@
                         IsVisible="False"/>
       </Grid>
 
+      <!-- Album Art -->
       <Border Grid.Column="1"
-              Width="40"
-              Height="40"
+              Width="52"
+              Height="52"
               CornerRadius="6"
               ClipToBounds="True"
-              Background="#181818">
-        <Border.Effect>
-          <DropShadowEffect BlurRadius="8" Opacity="0.5" OffsetX="0" OffsetY="2"/>
-        </Border.Effect>
+              Background="#0A0A0A">
         <Image Source="{Binding Art}" Stretch="UniformToFill"/>
       </Border>
 
+      <!-- Track Info -->
       <StackPanel Grid.Column="2"
                   Orientation="Vertical"
-                  Spacing="3"
+                  Spacing="5"
                   VerticalAlignment="Center"
-                  Margin="14,0,0,0">
+                  Margin="20,0,0,0">
         <TextBlock Text="{Binding Title}"
-                   FontSize="14"
-                   FontWeight="Medium"
-                   Foreground="White"
+                   FontSize="15"
+                   FontWeight="SemiBold"
+                   Foreground="#FFFFFF"
                    TextTrimming="CharacterEllipsis"/>
         <TextBlock Text="{Binding Artist}"
-                   FontSize="12"
-                   Foreground="#9E9E9E"
+                   FontSize="13"
+                   Foreground="#8F8F8F"
                    TextTrimming="CharacterEllipsis"/>
       </StackPanel>
 
+      <!-- Album -->
       <TextBlock Grid.Column="3"
                  Text="{Binding Album}"
-                 Foreground="#9E9E9E"
+                 Foreground="#8F8F8F"
                  FontSize="13"
                  VerticalAlignment="Center"
-                 TextTrimming="CharacterEllipsis"/>
+                 TextTrimming="CharacterEllipsis"
+                 Margin="16,0"/>
 
+      <!-- Date Added -->
       <TextBlock Grid.Column="4"
                  Text="{Binding DateAddedString}"
-                 Foreground="#8A8A8A"
+                 Foreground="#6F6F6F"
                  FontSize="12"
                  VerticalAlignment="Center"/>
 
+      <!-- Duration -->
       <TextBlock Grid.Column="5"
                  Text="{Binding DurationString}"
-                 Foreground="#9E9E9E"
+                 Foreground="#8F8F8F"
                  FontSize="13"
                  HorizontalAlignment="Right"
-                 VerticalAlignment="Center"/>
+                 VerticalAlignment="Center"
+                 FontWeight="Medium"/>
       
+      <!-- Like Button -->
       <Button Grid.Column="6"
               Name="LikeButton"
-              Width="32"
-              Height="32"
+              Width="36"
+              Height="36"
               Background="Transparent"
               BorderThickness="0"
-              CornerRadius="16"
+              CornerRadius="18"
               Padding="0"
               VerticalAlignment="Center"
               HorizontalAlignment="Center"
@@ -215,7 +269,7 @@
               Click="OnTrackLikeClick">
         <Button.Styles>
           <Style Selector="Button:pointerover">
-            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Background" Value="#1C1C1C"/>
           </Style>
         </Button.Styles>
         
@@ -223,53 +277,49 @@
               Fill="{Binding IsLiked, Converter={StaticResource LikeColorConverter}}"
               Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
               Stretch="Uniform"
-              Width="18"
-              Height="18"/>
+              Width="19"
+              Height="19"/>
       </Button>
     </Grid>
-
-    <Border.Styles>
-      <Style Selector="Border:pointerover">
-        <Setter Property="Background" Value="#1A1A1A"/>
-      </Style>
-    </Border.Styles>
   </Border>
 </DataTemplate>
 
     <DataTemplate DataType="local:QueueEntry">
-      <Border Padding="4,3">
+      <Border Padding="8,5" CornerRadius="8" Margin="0,2">
         <Border.Styles>
           <Style Selector="Border">
             <Setter Property="Background" Value="Transparent"/>
           </Style>
           <Style Selector="Border:pointerover">
-            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Background" Value="#151515"/>
           </Style>
           <Style Selector="Border[Tag=Current]">
-            <Setter Property="Background" Value="#222222"/>
+            <Setter Property="Background" Value="#1A1A1A"/>
           </Style>
         </Border.Styles>
 
-        <Grid ColumnDefinitions="18,40,12,*">
+        <Grid ColumnDefinitions="20,42,12,*">
           <TextBlock Grid.Column="0"
                      FontSize="12"
                      HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
                      Foreground="{Binding IsCurrent, Converter={StaticResource FavBrush}}"/>
           <Border Grid.Column="1"
-                  Width="36"
-                  Height="36"
-                  CornerRadius="4"
+                  Width="40"
+                  Height="40"
+                  CornerRadius="6"
                   ClipToBounds="True"
-                  Background="#181818">
+                  Background="#0A0A0A">
             <Image Source="{Binding Track.Art}" Stretch="UniformToFill"/>
           </Border>
-          <StackPanel Grid.Column="3" Spacing="2">
+          <StackPanel Grid.Column="3" Spacing="3" VerticalAlignment="Center">
             <TextBlock Text="{Binding Track.Title}"
                        FontSize="13"
+                       FontWeight="Medium"
                        TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{Binding Track.Artist}"
                        FontSize="11"
-                       Foreground="#B3B3B3"
+                       Foreground="#9F9F9F"
                        TextTrimming="CharacterEllipsis"/>
           </StackPanel>
         </Grid>
@@ -278,177 +328,188 @@
   </UserControl.DataTemplates>
 
   <Grid>
-    <Border Name="BackgroundGradient"/>
+    <Border Name="BackgroundGradient">
+      <Border.Background>
+        <RadialGradientBrush Center="50%,0%" GradientOrigin="50%,0%" Radius="1.5">
+          <GradientStop Color="#0A0A0A" Offset="0"/>
+          <GradientStop Color="#050505" Offset="1"/>
+        </RadialGradientBrush>
+      </Border.Background>
+    </Border>
 
     <Grid Name="MainContentGrid" RowDefinitions="*,Auto" ColumnDefinitions="Auto,*,380">
 
-      <Border Grid.Column="0" Grid.RowSpan="2" Background="#000000" Padding="8" MinWidth="240" MaxWidth="320">
-        <Border Background="#0A0A0A" CornerRadius="12" Padding="0">
+      <!-- SIDEBAR -->
+      <Border Grid.Column="0" Grid.RowSpan="2" Name="SidebarPanel" Background="#000000" Padding="0" MinWidth="260" MaxWidth="340">
+        <Border Background="#080808" CornerRadius="0" Padding="0">
           <ScrollViewer VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled"
-                        Padding="16,20">
-            <StackPanel Spacing="24">
-              <StackPanel Spacing="4">
+                        Padding="24,28">
+            <StackPanel Spacing="32">
+              
+              <!-- Logo -->
+              <StackPanel Spacing="8">
                 <TextBlock Text="NOCTUNE"
-                           FontSize="18"
-                           FontWeight="Bold"
+                           FontSize="24"
+                           FontWeight="Black"
                            Foreground="#1DB954"
-                           LetterSpacing="2"
-                           Margin="0,0,0,2"/>
-                <Border Height="2"
+                           LetterSpacing="4"
+                           Margin="0,0,0,4"/>
+                <Border Height="3"
                         Background="#1DB954"
-                        CornerRadius="1"
-                        Width="60"
+                        CornerRadius="1.5"
+                        Width="80"
                         HorizontalAlignment="Left"
-                        Opacity="0.8"/>
+                        Opacity="0.9"/>
               </StackPanel>
 
-              <Border Background="#151515"
-                      CornerRadius="10"
-                      Padding="12" 
-                      BorderBrush="#252525"
-                      BorderThickness="1">
-                <Grid ColumnDefinitions="52,*,32">
-                  <Border Width="48"
-                          Height="48"
-                          CornerRadius="8"
-                          Background="#1A1A1A"
-                          ClipToBounds="True"
-                          BoxShadow="0 4 12 0 #000000">
+              <!-- Mini Player Card -->
+              <Border Background="#0F0F0F"
+                      CornerRadius="16"
+                      Padding="16"
+                      ClipToBounds="False">
+                <Grid ColumnDefinitions="60,*,36">
+                  <Border Width="56"
+                          Height="56"
+                          CornerRadius="12"
+                          Background="#0A0A0A"
+                          ClipToBounds="True">
                     <Image Name="MiniCover" Stretch="UniformToFill"/>
                   </Border>
                   <StackPanel Grid.Column="1"
-                              Margin="12,0,8,0"
+                              Margin="14,0,10,0"
                               VerticalAlignment="Center"
-                              Spacing="3">
+                              Spacing="5">
                     <TextBlock Name="MiniTitle"
-                               FontSize="13"
-                               FontWeight="SemiBold"
+                               FontSize="14"
+                               FontWeight="Bold"
                                Foreground="#FFFFFF"
                                TextTrimming="CharacterEllipsis"/>
                     <TextBlock Name="MiniArtist"
-                               FontSize="11"
-                               Foreground="#9A9A9A"
+                               FontSize="12"
+                               Foreground="#8F8F8F"
                                TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
                   <Button Grid.Column="2"
                           Background="#1DB954"
-                          Width="30"
-                          Height="30"
-                          CornerRadius="15"
+                          Width="34"
+                          Height="34"
+                          CornerRadius="17"
                           Padding="0"
                           Name="MiniPlayButton">
                     <Path Fill="#000000"
                           Data="M8 5v14l11-7z"
                           Stretch="Uniform"
-                          Width="10"
-                          Height="10"
+                          Width="12"
+                          Height="12"
                           Margin="2,0,0,0"/>
                   </Button>
                 </Grid>
               </Border>
 
-              <StackPanel Spacing="6">
+              <!-- Navigation -->
+              <StackPanel Spacing="10">
                 <TextBlock Text="NAVIGATION"
-                           FontSize="10"
-                           FontWeight="Bold"
-                           Foreground="#666666"
-                           LetterSpacing="1"
-                           Margin="4,0,0,6"/>
+                           FontSize="11"
+                           FontWeight="Black"
+                           Foreground="#4F4F4F"
+                           LetterSpacing="2"
+                           Margin="6,0,0,10"/>
                 
-                <Button Name="OpenPlaylistsButton">
-                  <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Border Background="#1DB954" Width="32" Height="32" CornerRadius="6" Padding="7">
-                      <Path Fill="#ffffffff"
+                <Button Name="OpenPlaylistsButton" Padding="14,12">
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Border Background="#1DB954" Width="40" Height="40" CornerRadius="10" Padding="9">
+                      <Path Fill="#000000"
                             Data="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
                             Stretch="Uniform"
-                            Width="18" 
-                            Height="18"/>
+                            Width="22" 
+                            Height="22"/>
                     </Border>
                     <TextBlock Text="Your Playlists"
-                               FontSize="14"
-                               FontWeight="Medium"
+                               FontSize="15"
+                               FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
-                   
                   </StackPanel>
                 </Button>
-                <Button Name="LikedSongsButton">
-                  <StackPanel Orientation="Horizontal" Spacing="14">
-                    <Border Background="#1DB954" Width="34" Height="34" CornerRadius="8" Padding="7">
-                      <Path Fill="#ffffffff"
+                
+                <Button Name="LikedSongsButton" Padding="14,12">
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Border Background="#1DB954" Width="40" Height="40" CornerRadius="10" Padding="9">
+                      <Path Fill="#000000"
                             Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
                             Stretch="Uniform"
-                            Width="20" 
-                            Height="20"/>
+                            Width="22" 
+                            Height="22"/>
                     </Border>
-                    <StackPanel Orientation="Vertical" Spacing="2" VerticalAlignment="Center">
+                    <StackPanel Orientation="Vertical" Spacing="3" VerticalAlignment="Center">
                       <TextBlock Text="Liked Songs"
-                                 FontSize="14"
+                                 FontSize="15"
                                  FontWeight="SemiBold"/>
                       <TextBlock Name="LikedSongsCount"
                                  Text="0 songs"
-                                 FontSize="11"
-                                 Foreground="#9E9E9E"/>
+                                 FontSize="12"
+                                 Foreground="#8F8F8F"/>
                     </StackPanel>
                   </StackPanel>
                 </Button>
               </StackPanel>
 
-              <StackPanel Spacing="10">
+              <!-- Library Sort -->
+              <StackPanel Spacing="14">
                 <TextBlock Text="YOUR LIBRARY"
-                           FontSize="10"
-                           FontWeight="Bold"
-                           Foreground="#666666"
-                           LetterSpacing="1"
-                           Margin="4,0,0,4"/>
+                           FontSize="11"
+                           FontWeight="Black"
+                           Foreground="#4F4F4F"
+                           LetterSpacing="2"
+                           Margin="6,0,0,4"/>
 
-                <Grid ColumnDefinitions="*,Auto">
-                  <ComboBox Name="SortBox"
-                            Grid.Column="0"
-                            SelectedIndex="0"
-                            Background="#151515"
-                            BorderBrush="#2A2A2A"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="10,6"
-                            FontSize="12">
-                    <ComboBoxItem Content="Title (A–Z)" Tag="Title"/>
-                    <ComboBoxItem Content="Recently Added" Tag="Date"/>
-                    <ComboBoxItem Content="Artist" Tag="Artist"/>
-                    <ComboBoxItem Content="Album" Tag="Album"/>
-                  </ComboBox>
-                </Grid>
+                <ComboBox Name="SortBox"
+                          SelectedIndex="0"
+                          Background="#0F0F0F"
+                          BorderBrush="#1A1A1A"
+                          BorderThickness="1"
+                          CornerRadius="12"
+                          Padding="14,10"
+                          FontSize="13"
+                          FontWeight="Medium">
+                  <ComboBoxItem Content="Title (A–Z)" Tag="Title"/>
+                  <ComboBoxItem Content="Recently Added" Tag="Date"/>
+                  <ComboBoxItem Content="Artist" Tag="Artist"/>
+                  <ComboBoxItem Content="Album" Tag="Album"/>
+                </ComboBox>
               </StackPanel>
 
-              <StackPanel Spacing="8">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+              <!-- Queue -->
+              <StackPanel Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="10">
                   <TextBlock Text="NEXT IN QUEUE"
-                             FontSize="10"
-                             FontWeight="Bold"
-                             Foreground="#666666"
-                             LetterSpacing="1"
+                             FontSize="11"
+                             FontWeight="Black"
+                             Foreground="#4F4F4F"
+                             LetterSpacing="2"
                              VerticalAlignment="Center"/>
                   <Border Background="#1DB954" 
-                          CornerRadius="8" 
-                          Padding="4,2">
+                          CornerRadius="10" 
+                          Padding="6,3">
                     <TextBlock Text="LIVE"
-                               FontSize="8"
-                               FontWeight="Bold"
-                               Foreground="#000000"/>
+                               FontSize="9"
+                               FontWeight="Black"
+                               Foreground="#000000"
+                               LetterSpacing="1"/>
                   </Border>
                 </StackPanel>
                 
-                <Border Background="#0F0F0F"
-                        CornerRadius="10"
-                        Padding="6"
-                        BorderBrush="#1F1F1F"
+                <Border Background="#0A0A0A"
+                        CornerRadius="14"
+                        Padding="10"
+                        BorderBrush="#151515"
                         BorderThickness="1">
-                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="320">
                     <ItemsControl Name="QueueItemsControl"
                                   PointerPressed="QueueItem_PointerPressed">
                       <ItemsControl.Styles>
                         <Style Selector="ContentPresenter">
-                          <Setter Property="Margin" Value="0,1"/>
+                          <Setter Property="Margin" Value="0,0"/>
                         </Style>
                       </ItemsControl.Styles>
                     </ItemsControl>
@@ -460,35 +521,90 @@
         </Border>
       </Border>
 
-      <Grid Grid.Column="1" Grid.Row="0" Margin="16">
+      <!-- MAIN CONTENT -->
+      <Grid Grid.Column="1" Grid.Row="0" Name="MainContentArea" Margin="24,20,20,0">
         <Grid RowDefinitions="Auto,Auto,*">
-          <TextBox
-            Grid.Row="0"
-            Name="SearchBox"
-            HorizontalAlignment="Center"
-            Watermark="Search tracks..."
-            Height="46"
-            Width="350"
-            CornerRadius="12"
-            Background="#111111"
-            BorderBrush="#2A2A2A"
-            BorderThickness="1.4"
-            Padding="16,12"
-            FontSize="15"
-            VerticalAlignment="Top"
-            Margin="0,0,0,24"/>
+          
+          <!-- Search Bar -->
+          <Grid Grid.Row="0" Margin="0,0,0,32">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <Button Name="HamburgerButton" 
+                    Grid.Column="0"
+                    Classes="icon"
+                    Width="44"
+                    Height="44"
+                    Margin="0,0,12,0"
+                    IsVisible="False">
+              <Path Fill="#B3B3B3"
+                    Data="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"
+                    Stretch="Uniform"
+                    Width="22"
+                    Height="22"/>
+            </Button>
 
+            <Border Grid.Column="1"
+                    Background="#0F0F0F"
+                    BorderBrush="#1A1A1A"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Height="54"
+                    MaxWidth="600"
+                    HorizontalAlignment="Stretch"
+                    ClipToBounds="False">
+              <Grid ColumnDefinitions="54,*">
+                <Path Grid.Column="0"
+                      Fill="#535353"
+                      Data="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                      Stretch="Uniform"
+                      Width="20"
+                      Height="20"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"/>
+                <TextBox Grid.Column="1"
+                  Name="SearchBox"
+                  Watermark="Search tracks, artists, albums..."
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Padding="0,0,20,0"
+                  FontSize="15"
+                  VerticalAlignment="Center"
+                  VerticalContentAlignment="Center"/>
+              </Grid>
+            </Border>
+              
+            <Button Name="MobileLyricsButton"
+                    Grid.Column="2"
+                    Classes="icon"
+                    Width="44"
+                    Height="44"
+                    Margin="12,0,0,0"
+                    IsVisible="False">
+              <TextBlock Text="♪"
+                         FontSize="22"
+                         Foreground="#1DB954"
+                         FontWeight="Bold"/>
+            </Button>
+          </Grid>
+
+          <!-- Now Playing Section -->
           <Grid Grid.Row="1"
-                Margin="0,0,0,24"
-                ColumnDefinitions="Auto,*,Auto">
+                Name="NowPlayingSection"
+                Margin="0,0,0,32"
+                ColumnDefinitions="Auto,*">
 
             <Grid Grid.Column="0"
-                  Width="260"
-                  Height="260"
-                  Name="MiniCoverContainer">
-              <Border CornerRadius="18"
+                  Name="MiniCoverContainer"
+                  Width="220"
+                  Height="220"
+                  Margin="0,0,32,0">
+              <Border CornerRadius="24"
                       ClipToBounds="True"
-                      Background="#181818">
+                      Background="#0A0A0A">
                 <Image Name="AlbumArt"
                        Stretch="UniformToFill"/>
               </Border>
@@ -497,71 +613,101 @@
                           Orientation="Horizontal"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
-                          Spacing="18"
+                          Spacing="16"
                           Opacity="0"
                           IsHitTestVisible="False">
 
                 <Button Name="MiniPrev"
                         Width="42" Height="42"
-                        Background="#121212DD"
+                        Background="#000000DD"
                         CornerRadius="21">
                   <Path Fill="White"
-                        Data="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
+                        Data="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"
+                        Stretch="Uniform"
+                        Width="18"
+                        Height="18"/>
                 </Button>
 
                 <Button Name="MiniPlayPause"
-                        Width="56" Height="56"
+                        Width="58" Height="58"
                         Background="#1DB954"
-                        CornerRadius="28">
+                        CornerRadius="29">
                   <Path Fill="Black"
-                        Data="M8 5v14l11-7z"/>
+                        Data="M8 5v14l11-7z"
+                        Stretch="Uniform"
+                        Width="20"
+                        Height="20"
+                        Margin="2,0,0,0"/>
                 </Button>
 
                 <Button Name="MiniNext"
                         Width="42" Height="42"
-                        Background="#121212DD"
+                        Background="#000000DD"
                         CornerRadius="21">
                   <Path Fill="White"
-                        Data="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+                        Data="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"
+                        Stretch="Uniform"
+                        Width="18"
+                        Height="18"/>
                 </Button>
               </StackPanel>
             </Grid>
 
             <StackPanel Grid.Column="1"
-                        Margin="40,0,0,0"
+                        Name="TrackInfoPanel"
                         VerticalAlignment="Center"
                         Spacing="14">
-              <TextBlock Text="Now Playing"
-                         FontSize="13"
-                         Foreground="#B3B3B3"/>
+              <Border Background="#1DB95420"
+                      CornerRadius="8"
+                      Padding="10,6"
+                      HorizontalAlignment="Left">
+                <TextBlock Text="NOW PLAYING"
+                           FontSize="11"
+                           FontWeight="Black"
+                           Foreground="#1DB954"
+                           LetterSpacing="2"/>
+              </Border>
 
               <TextBlock Name="TrackLabel"
-                         FontSize="34"
-                         FontWeight="Bold"
-                         TextWrapping="Wrap"/>
+                         FontSize="38"
+                         FontWeight="Black"
+                         TextWrapping="Wrap"
+                         TextTrimming="CharacterEllipsis"
+                         MaxLines="2"
+                         LineHeight="44"/>
 
               <TextBlock Name="ArtistLabel"
-                         FontSize="18"
-                         Foreground="#C6C6C6"/>
+                         FontSize="19"
+                         FontWeight="SemiBold"
+                         Foreground="#D5D5D5"
+                         TextTrimming="CharacterEllipsis"/>
 
               <TextBlock Name="AlbumLabel"
                          FontSize="14"
-                         Foreground="#9B9B9B"/>
+                         Foreground="#8F8F8F"
+                         TextTrimming="CharacterEllipsis"/>
             </StackPanel>
           </Grid>
 
+          <!-- Track List -->
           <Border Grid.Row="2"
-                  Background="#181818"
-                  CornerRadius="12"
-                  Padding="8">
+                  Background="#0A0A0A"
+                  CornerRadius="20"
+                  Padding="12"
+                  ClipToBounds="False">
             <ListBox Name="PlaylistBox"
                      Background="Transparent"
                      BorderThickness="0"
+                     ItemsSource="{Binding Tracks}"
                      ScrollViewer.VerticalScrollBarVisibility="Visible"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
               <ListBox.ContextMenu>
                 <ContextMenu>
-                  <MenuItem Header="Play" Name="PlayContextMenuItem"/>
+                  <MenuItem Header="▶ Play" Name="PlayContextMenuItem"/>
+                  <Separator/>
+                  <MenuItem Header="➕ Add to Queue" Name="AddToQueueContextMenuItem"/>
+                  <MenuItem Header="⏭️ Play Next" Name="PlayNextContextMenuItem"/>
+                  <Separator/>
                   <MenuItem Header="📝 Upload Lyrics" Name="UploadLyricsMenuItem"/>
                   <MenuItem Header="Remove" Name="RemoveContextMenuItem"/>
                   <MenuItem Header="Add to Playlist" Name="AddToPlaylistMenuItem"/>
@@ -569,44 +715,56 @@
                 </ContextMenu>
               </ListBox.ContextMenu>
             </ListBox>
+
           </Border>
         </Grid>
       </Grid>
 
+      <!-- LYRICS PANEL -->
       <Border Name="LyricsPanelContainer"
               Grid.Column="2"
               Grid.Row="0"
-              Background="#0A0A0A"
-              Margin="0,16,16,0"
-              CornerRadius="12"
+              Background="#080808"
+              Margin="0,20,24,0"
+              CornerRadius="20"
+              BorderBrush="#151515"
+              BorderThickness="1"
+              ClipToBounds="False"
               IsVisible="True">
         <local:LyricsDisplay Name="LyricsDisplay"/>
       </Border>
 
+      <!-- PLAYBACK BAR -->
       <Border Grid.Column="0"
               Grid.ColumnSpan="3"
               Grid.Row="1"
-              Background="#000000"
-              Padding="20,12">
+              Background="#0A0A0A"
+              Name="PlaybackBar"
+              Padding="28,16"
+              BorderBrush="#151515"
+              BorderThickness="0,1,0,0">
         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,*">
+          
+          <!-- Seek Bar -->
           <Grid Grid.Row="0"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
                 ColumnDefinitions="Auto,*,Auto"
-                Margin="0,0,0,16">
+                Margin="0,0,0,20">
             <TextBlock Grid.Column="0"
                        Name="CurrentTimeText"
                        Text="0:00"
-                       Foreground="#B3B3B3"
-                       FontSize="11"
+                       Foreground="#8F8F8F"
+                       FontSize="12"
+                       FontWeight="SemiBold"
                        VerticalAlignment="Center"
-                       Margin="0,0,10,0"/>
+                       Margin="0,0,16,0"/>
 
             <Border Grid.Column="1"
                     x:Name="SeekBarContainer"
-                    Height="8"
-                    Background="#4A4A4A"
-                    CornerRadius="4"
+                    Height="6"
+                    Background="#1A1A1A"
+                    CornerRadius="3"
                     VerticalAlignment="Center"
                     PointerPressed="SeekBarPressed"
                     PointerMoved="SeekBarMoved"
@@ -615,31 +773,35 @@
               <Border x:Name="SeekBarFill"
                       Background="#1DB954"
                       HorizontalAlignment="Left"
-                      CornerRadius="4"
+                      CornerRadius="3"
                       Width="0"/>
             </Border>
 
             <TextBlock Grid.Column="2"
                        Name="TotalTimeText"
                        Text="0:00"
-                       Foreground="#B3B3B3"
-                       FontSize="11"
+                       Foreground="#8F8F8F"
+                       FontSize="12"
+                       FontWeight="SemiBold"
                        VerticalAlignment="Center"
-                       Margin="10,0,0,0"/>
+                       Margin="16,0,0,0"/>
           </Grid>
 
           <StackPanel Grid.Row="1" Grid.Column="0"/>
 
+          <!-- Center Controls -->
           <StackPanel Grid.Row="1"
                       Grid.Column="1"
+                      Name="CenterControls"
                       Orientation="Horizontal"
                       HorizontalAlignment="Center"
-                      Spacing="10">
+                      Spacing="12">
+            
             <Button Name="FullscreenButton"
                     Classes="icon"
-                    Width="38"
-                    Height="38">
-              <Path Fill="#B3B3B3"
+                    Width="40"
+                    Height="40">
+              <Path Fill="#9F9F9F"
                     Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
                     Stretch="Uniform"
                     Width="18"
@@ -648,10 +810,9 @@
             
             <Button Name="LyricsToggleButton"
                     Width="40"
-                    Height="36"
-                    Background="#282828"
-                    CornerRadius="4"
-                    Margin="8,0"
+                    Height="40"
+                    Background="#1C1C1C"
+                    CornerRadius="10"
                     ToolTip.Tip="Toggle Lyrics"
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center">
@@ -663,9 +824,9 @@
 
             <ToggleButton Name="ShuffleButton"
                           Classes="icon"
-                          Width="38"
-                          Height="38">
-              <Path Fill="#B3B3B3"
+                          Width="40"
+                          Height="40">
+              <Path Fill="#9F9F9F"
                     Data="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
                     Stretch="Uniform"
                     Width="18"
@@ -674,9 +835,9 @@
             
             <Button Name="PrevButton"
                     Classes="icon"
-                    Width="38"
-                    Height="38">
-              <Path Fill="#B3B3B3"
+                    Width="40"
+                    Height="40">
+              <Path Fill="#CFCFCF"
                     Data="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"
                     Stretch="Uniform"
                     Width="20"
@@ -686,20 +847,20 @@
             <Button Name="PlayPauseButton"
                     Background="#1DB954"
                     BorderThickness="0"
-                    CornerRadius="26"
-                    Width="52"
-                    Height="52"
+                    CornerRadius="30"
+                    Width="58"
+                    Height="58"
                     Padding="0">
               <Image Name="PlayPauseIcon"
-                     Width="22"
-                     Height="22"/>
+                     Width="24"
+                     Height="24"/>
             </Button>
             
             <Button Name="NextButton"
                     Classes="icon"
-                    Width="38"
-                    Height="38">
-              <Path Fill="#B3B3B3"
+                    Width="40"
+                    Height="40">
+              <Path Fill="#CFCFCF"
                     Data="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"
                     Stretch="Uniform"
                     Width="20"
@@ -708,9 +869,9 @@
             
             <ToggleButton Name="LoopButton"
                           Classes="icon"
-                          Width="38"
-                          Height="38">
-              <Path Fill="#B3B3B3"
+                          Width="40"
+                          Height="40">
+              <Path Fill="#9F9F9F"
                     Data="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"
                     Stretch="Uniform"
                     Width="18"
@@ -718,35 +879,38 @@
             </ToggleButton>
           </StackPanel>
 
+          <!-- Volume Controls -->
           <StackPanel Grid.Row="1"
                       Grid.Column="2"
+                      Name="VolumeControls"
                       Orientation="Horizontal"
                       HorizontalAlignment="Right"
-                      Spacing="12">
+                      Spacing="16">
             <TextBlock Text="Vol"
-                       Foreground="#B3B3B3"
-                       FontSize="11"
+                       Foreground="#8F8F8F"
+                       FontSize="12"
+                       FontWeight="Bold"
                        VerticalAlignment="Center"/>
             <Slider Name="VolumeSlider"
                     Minimum="0"
                     Maximum="100"
                     Value="50"
-                    Width="100"
+                    Width="120"
                     VerticalAlignment="Center">
               <Slider.Styles>
                 <Style Selector="Slider /template/ Track /template/ Rectangle#PART_Track">
-                  <Setter Property="Height" Value="3"/>
-                  <Setter Property="Fill" Value="#4A4A4A"/>
+                  <Setter Property="Height" Value="4"/>
+                  <Setter Property="Fill" Value="#2A2A2A"/>
                 </Style>
                 <Style Selector="Slider /template/ Track /template/ Rectangle#PART_Indicator">
-                  <Setter Property="Height" Value="3"/>
+                  <Setter Property="Height" Value="4"/>
                   <Setter Property="Fill" Value="#FFFFFF"/>
                 </Style>
                 <Style Selector="Slider /template/ Thumb">
-                  <Setter Property="Width" Value="10"/>
-                  <Setter Property="Height" Value="10"/>
+                  <Setter Property="Width" Value="14"/>
+                  <Setter Property="Height" Value="14"/>
                   <Setter Property="Background" Value="#FFFFFF"/>
-                  <Setter Property="CornerRadius" Value="5"/>
+                  <Setter Property="CornerRadius" Value="7"/>
                   <Setter Property="Opacity" Value="0"/>
                 </Style>
                 <Style Selector="Slider:pointerover /template/ Thumb">
@@ -754,66 +918,77 @@
                 </Style>
               </Slider.Styles>
             </Slider>
-            <Border Width="120"
-                    Height="24"
-                    Background="#0a0a0a"
-                    CornerRadius="12"
-                    Padding="6,4">
+            <Border Width="130"
+                    Height="28"
+                    Background="#0F0F0F"
+                    CornerRadius="14"
+                    Padding="10,6"
+                    BorderBrush="#1A1A1A"
+                    BorderThickness="1">
               <StackPanel Name="VisualizerPanel"
                           Orientation="Horizontal"
                           HorizontalAlignment="Center"
-                          Spacing="1"/>
+                          Spacing="2"/>
             </Border>
           </StackPanel>
         </Grid>
       </Border>
     </Grid>
 
+    <!-- CREATE PLAYLIST OVERLAY -->
     <Border Name="MainForceCreateOverlay"
-            Background="#000000AA"
+            Background="#000000DD"
             IsVisible="False"
             ZIndex="999"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch">
-      <Border Width="420"
-              Background="#121212"
-              CornerRadius="16"
-              Padding="24"
+      <Border Width="480"
+              Background="#0F0F0F"
+              CornerRadius="24"
+              Padding="36"
+              BorderBrush="#1A1A1A"
+              BorderThickness="1"
               HorizontalAlignment="Center"
-              VerticalAlignment="Center">
-        <StackPanel Spacing="16">
+              VerticalAlignment="Center"
+              ClipToBounds="False">
+        <StackPanel Spacing="24">
           <TextBlock Text="Create Your First Playlist"
-                     FontSize="24"
-                     FontWeight="Bold"
-                     HorizontalAlignment="Center"/>
+                     FontSize="28"
+                     FontWeight="Black"
+                     HorizontalAlignment="Center"
+                     TextWrapping="Wrap"/>
 
-          <TextBlock Text="You need at least one playlist to use Noctune fully."
-                     Foreground="#B3B3B3"
-                     FontSize="13"
-                     HorizontalAlignment="Center"/>
+          <TextBlock Text="Start building your music collection by creating a playlist."
+                     Foreground="#9F9F9F"
+                     FontSize="15"
+                     HorizontalAlignment="Center"
+                     TextWrapping="Wrap"/>
 
           <TextBox Name="MainForceNameBox"
                    Watermark="Playlist name"
-                   Background="#282828"
+                   Background="#0A0A0A"
                    Foreground="#FFFFFF"
-                   BorderBrush="#535353"
-                   CornerRadius="6"
-                   Padding="8"/>
+                   BorderBrush="#1A1A1A"
+                   CornerRadius="14"
+                   Padding="16,14"
+                   FontSize="15"/>
 
           <TextBox Name="MainForceDescBox"
                    Watermark="Description (optional)"
-                   Background="#282828"
+                   Background="#0A0A0A"
                    Foreground="#FFFFFF"
-                   BorderBrush="#535353"
-                   CornerRadius="6"
-                   Padding="8"/>
+                   BorderBrush="#1A1A1A"
+                   CornerRadius="14"
+                   Padding="16,14"
+                   FontSize="15"/>
 
           <Button Name="MainForceCreateButton"
                   Background="#1DB954"
                   Foreground="#000000"
-                  Padding="12"
-                  CornerRadius="8"
-                  FontSize="14"
+                  Padding="18,14"
+                  CornerRadius="14"
+                  FontSize="16"
+                  FontWeight="Bold"
                   HorizontalAlignment="Stretch">
             Create Playlist
           </Button>

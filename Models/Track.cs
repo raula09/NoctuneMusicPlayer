@@ -42,8 +42,7 @@ public class Track : INotifyPropertyChanged
         _dateAdded = DateTime.Now;
         _metadataLoaded = false;
         _lyricsLoaded = false;
-        
-        // Load lyrics from permanent storage
+         
         LoadLyricsFromDatabase();
     }
 
@@ -56,7 +55,7 @@ public class Track : INotifyPropertyChanged
             var savedLyrics = LyricsService.GetLyrics(_path);
             if (savedLyrics != null)
             {
-                // ✅ Set backing field directly - DON'T use the property setter
+               
                 _lyricsData = savedLyrics;
             }
         }

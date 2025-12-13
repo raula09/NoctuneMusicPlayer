@@ -145,8 +145,12 @@
 
           <ListBox.ContextMenu>
             <ContextMenu>
-              <MenuItem Header="Play" x:Name="PlayTrackMenuItem" Click="OnPlayTrackClick"/>
-              <MenuItem Header="Remove from Playlist" x:Name="RemoveTrackMenuItem" Click="OnRemoveTrackClick"/>
+              <MenuItem Header="▶ Play" x:Name="PlayTrackMenuItem"/>
+              <Separator/>
+              <MenuItem Header="➕ Add to Queue" x:Name="AddToQueueMenuItem"/>
+              <MenuItem Header="⏭️ Play Next" x:Name="PlayNextMenuItem"/>
+              <Separator/>
+              <MenuItem Header="🗑️ Remove from Playlist" x:Name="RemoveTrackMenuItem"/>
             </ContextMenu>
           </ListBox.ContextMenu>
         </ListBox>
