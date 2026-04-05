@@ -4,14 +4,14 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.Controls.Shapes;
-using Avalonia.VisualTree;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using MusicPlayerApp.Models;
-using Avalonia.VisualTree;
+
 
 namespace MusicPlayerApp;
 
