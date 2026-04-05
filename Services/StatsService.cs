@@ -13,7 +13,7 @@ public static class StatsService
     {
         string dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MusicPlayerApp",
+            "Noctune",
             "Stats");
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, filename);

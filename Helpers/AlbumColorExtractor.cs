@@ -3,7 +3,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
 
-namespace MusicPlayerApp
+namespace MusicPlayerApp.Helpers
 {
     public static class AlbumColorExtractor
     {
